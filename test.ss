@@ -4,7 +4,9 @@
         (sine)
         (only (scheme-tools) pretty-print))
 
-(define (test-program)
-  (or (flip) (flip)))
+(define (test)
+  (if (flip)
+      (+ 1 (if (flip) 3 4))
+      4))
 
-(for-each pretty-print (marginalize test-program))
+(for-each pretty-print (marginalize test))

@@ -69,6 +69,5 @@
    (set! edge-table (make-eq-hashtable))
    (reset (thunk))
    (hash-table->alist (edge-table->marginals edge-table (get-id root) 1.0)))
- 
 
  )
