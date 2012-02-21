@@ -7,7 +7,7 @@
  (export marginalize flip)
 
  (import (rnrs)
-         (except (scheme-tools) flip)
+         (scheme-tools)
          (scheme-tools srfi-compat :1)
          (scheme-tools hash)
          (delimcc-simple-r6rs))
