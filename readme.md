@@ -1,6 +1,6 @@
 # Sine
 
-Sine is a minimal, fast, exact Church implementation.
+Sine is a minimal, exact Church implementation (work in progress!).
 
 ## Requirements
 
