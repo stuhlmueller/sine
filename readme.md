@@ -1,6 +1,15 @@
 # Sine
 
-Sine is a minimal, exact Church implementation (work in progress!).
+Sine is an experimental Church implementation based on a clean separation of inference and evaluation.
+
+Sine includes:
+
+- a minimal, exact Church implementation as a Scheme library (work in progress!)
+- a stochastic Scheme interpreter based on SICP that exposes control over random choices and recursive interpreter calls.
+
+## Installation
+
+- Add the sine directory to your <code>$VICARE_LIBRARY_PATH</code>.
 
 ## Requirements
 
@@ -10,4 +19,3 @@ Sine is a minimal, exact Church implementation (work in progress!).
 ## References
 
 Kiselyov, O., & Shan, C. (2009). Embedded Probabilistic Programming. Working conf. on domain specific lang.
-
