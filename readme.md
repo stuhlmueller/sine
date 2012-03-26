@@ -18,4 +18,5 @@ Sine includes:
 
 ## References
 
-Kiselyov, O., & Shan, C. (2009). Embedded Probabilistic Programming. Working conf. on domain specific lang.
+- Kiselyov, O., & Shan, C. (2009). Embedded Probabilistic Programming. Working conf. on domain specific lang.
+- Abelson, H., Sussman, J., & Sussman, J. (1996). Structure and Interpretation of Computer Programs.
