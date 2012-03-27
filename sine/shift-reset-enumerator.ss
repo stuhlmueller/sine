@@ -7,7 +7,7 @@
 (library
 
  (sine shift-reset-enumerator)
- 
+
  (export enumerate)
 
  (import (rnrs)
@@ -20,7 +20,7 @@
    (fields id proc vals probs)
    (protocol
     (lambda (n)
-      (lambda (c vs ps) 
+      (lambda (c vs ps)
         (n (gensym) c vs ps)))))
 
  (define (get-id obj)
@@ -61,7 +61,7 @@
                                                            root
                                                            0.0)))
              (for-each (lambda (child) (loop (car child)
-                                        (* p (cdr child))))
+                                             (* p (cdr child))))
                        children))))
      marginals))
 
