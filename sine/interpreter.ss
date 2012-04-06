@@ -24,7 +24,7 @@
          (only (scheme-tools math) random-real))
 
  (define true #t)
- 
+
  (define false #f)
 
  (define (eval exp env recur source)
@@ -38,7 +38,7 @@
           (make-procedure (lambda-parameters exp)
                           (lambda-body exp)
                           env))
-         ((begin? exp) 
+         ((begin? exp)
           (eval-sequence (begin-actions exp) env recur))
          ((cond? exp) (recur (cond->if exp) env))
          ((application? exp)
@@ -94,7 +94,7 @@
      env)
    'ok)
 
- 
+
  ;; SECTION 4.1.2
 
  (define (self-evaluating? exp)
@@ -213,7 +213,7 @@
                       (sequence->exp (cond-actions first))
                       (expand-clauses rest))))))
 
- 
+
  ;; SECTION 4.1.3
 
  (define (true? x)
@@ -299,7 +299,7 @@
      (scan (frame-variables frame)
            (frame-values frame))))
 
- 
+
  ;; SECTION 4.1.4
 
  (define (primitive-procedure? proc)
@@ -357,7 +357,7 @@
  (define (random-primitive-procedure-objects)
    (map (lambda (proc) (list 'rand (cadr proc)))
         random-primitive-procedures))
- 
+
 
  ;; INTERPRETERS
 
@@ -372,13 +372,13 @@
      (define-variable! 'false false initial-env)
      initial-env))
 
- (define default-source 
+ (define default-source
    (lambda (p) (< (random-real) p)))
 
  (define (make-default-recur source)
    (letrec ([recur (lambda (expr env) (eval expr env recur source))])
      recur))
- 
+
  (define (interpreter expr recur source)
    (let ([env (setup-environment)])
      (eval expr env recur source)))

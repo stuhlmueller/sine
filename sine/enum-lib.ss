@@ -11,7 +11,7 @@
          (sine shift-reset-enumerator))
 
  (define source (make-parameter #f))
- 
+
  (define (flip . ?p)
    (let ([p (if (null? ?p) .5 (car ?p))])
      ((source) p)))

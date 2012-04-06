@@ -11,7 +11,7 @@
  (import (rnrs)
          (sine shift-reset-enumerator)
          (sine interpreter)
-         (scheme-tools)) 
+         (scheme-tools))
 
  (define (enum-interpreter expr)
    (enumerate (lambda (source)
