@@ -12,7 +12,8 @@
 
  (sine interpreter)
 
- (export interpreter
+ (export (rename (eval interpreter-eval))
+         interpreter
          sicp-interpreter
          default-source
          make-default-recur)
