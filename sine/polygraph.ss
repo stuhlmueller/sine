@@ -18,6 +18,7 @@
          (scheme-tools graph callback)
          (scheme-tools graph utils)
          (scheme-tools srfi-compat :1)
+         (scheme-tools queue)
          (sine polycommon)
          (sine coroutine-interpreter)
          (sine coroutine-id)
@@ -25,57 +26,69 @@
 
  (define (interpreter-thunk->polygraph thunk)
    (let ([graph (make-graph)]
-         [root-link-promise (make-link-promise 0.0 #t)])
+         [queue (make-queue (make-task thunk 'root 0.0 #t))])
      (graph:add-node! graph 'root)
      (graph:set-root! graph 'root)
-     (build-graph graph thunk 'root root-link-promise)
-     graph))
+     (build-graph graph queue)))
 
- (define (build-graph graph thunk last-id link-promise)
-   (let ([node (thunk)])
-     (cond [(xrp? node) (build-graph:xrp graph node last-id link-promise)]
-           [(recur? node) (build-graph:recur graph node last-id link-promise)]
-           [(terminal? node) (build-graph:terminal graph node last-id link-promise)]
-           [else (error node "build-graph: unknown obj type")])))
+ (define (build-graph graph queue)
+   (let loop ()
+     (if (queue-empty? queue)
+         graph
+         (let ([task (dequeue! queue)])
+           (when (not (void? task))
+                 (let ([node ((task->thunk task))])
+                   (cond [(void? node) #f]
+                         [(xrp? node) (build-graph:xrp! graph queue task node)]
+                         [(recur? node) (build-graph:recur! graph queue task node)]
+                         [(terminal? node) (build-graph:terminal! graph queue task node)]
+                         [else (error node "build-graph: unknown obj type")])))
+           (loop)))))
 
- (define (build-graph:xrp graph xrp last-id link-promise)
+ (define (build-graph:xrp! graph queue task xrp)
    (for-each (lambda (value score)
-               (build-graph graph
-                            (lambda () ((xrp-cont xrp) value))
-                            last-id
-                            (multiply-link-promises
-                             link-promise
-                             (make-link-promise score value))))
+               (enqueue! queue
+                         (make-task (lambda () ((xrp-cont xrp) value))
+                                    (task->last-id task)
+                                    (plus/symbolic (task->link-weight task) score)
+                                    (cons value (task->link-label task)))))
              (xrp-vals xrp)
              (xrp-probs xrp)))
 
- (define (build-graph:terminal graph terminal last-id link-promise)
+ (define (build-graph:terminal! graph queue task terminal)
    (let ([terminal-id (terminal-id terminal)])
-     (graph:realize-link-promise! graph last-id terminal-id link-promise)
-     (graph:notify-ancestors-of-connection! graph terminal-id last-id)))
+     (graph:add/link! graph
+                      (task->last-id task)
+                      terminal-id
+                      (task->link-label task)
+                      (task->link-weight task))
+     (enqueue! queue
+               (make-task (lambda () (for-each (lambda (terminal->task)
+                                            (enqueue! queue (terminal->task terminal-id)))
+                                          (graph:ancestor-callbacks graph (task->last-id task))))))))
 
- (define (build-graph:recur graph recur last-id link-promise)
+ (define (build-graph:recur! graph queue task recur)
    (let* ([subthunk (lambda () (reset (make-terminal
                                   (apply (recur-call recur)
                                          (recur-state recur)))))]
           [subroot-id (recur-id recur)]
-          [subroot-link-promise (make-link-promise 0.0 #t)]
           [subroot-is-new (graph:add/retrieve! graph subroot-id)]
-          [callback (recursive-mem
-                     (lambda (terminal-id)
-                       (let ([value (terminal-id->value terminal-id)])
-                         (build-graph graph
-                                      (lambda () ((recur-cont recur) value))
-                                      last-id
-                                      (multiply-link-promises
-                                       link-promise
-                                       (make-link-promise (make-score-ref subroot-id
-                                                                          terminal-id)
-                                                          value)))))
-                     (lambda () #f))])
-     (graph:register-callback! graph subroot-id callback)
+          [seen? (make-watcher)]
+          [terminal->task
+           (lambda (terminal-id)
+             (when (not (seen? terminal-id))
+                   (let ([value (terminal-id->value terminal-id)])
+                     (make-task
+                      (lambda () ((recur-cont recur) value))
+                      (task->last-id task)
+                      (plus/symbolic (make-score-ref subroot-id terminal-id)
+                                     (task->link-weight task))
+                      (cons value (task->link-label task))))))])
+     (graph:register-callback! graph subroot-id terminal->task)
      (if subroot-is-new
-         (build-graph graph subthunk subroot-id subroot-link-promise)
-         (map callback (graph:reachable-terminals graph subroot-id)))))
+         (enqueue! queue (make-task subthunk subroot-id 0.0 #t))
+         (enqueue! queue (make-task (lambda ()
+                                      (for-each (lambda (terminal-id) (enqueue! queue (terminal->task terminal-id)))
+                                                (graph:reachable-terminals graph subroot-id))))))))
 
  )

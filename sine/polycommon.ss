@@ -9,16 +9,17 @@
 
  (export graph:reachable-terminals
          graph:notify-ancestors-of-connection!
-         graph:realize-link-promise!
          score-ref->terminal-node
          score-ref->root
          score-ref?
          make-score-ref
-         link-promise->label
-         link-promise->weight
-         make-link-promise
-         multiply-link-promises
-         list-of-weights)
+         list-of-weights
+         plus/symbolic
+         make-task
+         task->thunk
+         task->last-id
+         task->link-weight
+         task->link-label)
 
  (import (rnrs)
          (cosh continuation)
@@ -55,13 +56,6 @@
      (map (lambda (callback) (map (lambda (terminal) (callback terminal)) terminals))
           callbacks)))
 
- (define (graph:realize-link-promise! graph from-id to-id link-promise)
-   (graph:add/link! graph
-                    from-id
-                    to-id
-                    (link-promise->label link-promise)
-                    (link-promise->weight link-promise)))
-
  (define (make-score-ref root-node terminal-node)
    (list 'score-ref root-node terminal-node))
 
@@ -72,26 +66,25 @@
 
  (define score-ref->terminal-node third)
 
- (define (make-link-promise weight label)
-   (list 'link-promise weight label))
-
- (define link-promise->weight second)
-
- (define link-promise->label third)
-
  (define (list-of-weights weight)
    (cond [(score-ref? weight) (list weight)]
          [(number? weight) (list weight)]
          [(and (list? weight) (not (null? weight)) (eq? (car weight) '+)) (cdr weight)]
          [else (error weight "unknown weight type")]))
 
- (define (multiply-link-promises lp1 lp2)
-   (cond [(equal? (link-promise->weight lp1) 0.0) lp2]
-         [(equal? (link-promise->weight lp2) 0.0) lp1]
-         [else
-          (make-link-promise
-           `(+ ,@(list-of-weights (link-promise->weight lp1))
-               ,@(list-of-weights (link-promise->weight lp2)))
-           (list (link-promise->label lp1) (link-promise->label lp2)))]))
+ (define (plus/symbolic w1 w2)
+   `(+ ,@(list-of-weights w1)
+       ,@(list-of-weights w2)))
+
+ (define (make-task thunk . args)
+   (append (list 'task thunk) args))
+
+ (define task->thunk second)
+
+ (define task->last-id third)
+
+ (define task->link-weight fourth)
+
+ (define task->link-label fifth)
 
  )
