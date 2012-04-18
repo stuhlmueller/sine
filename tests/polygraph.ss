@@ -23,4 +23,4 @@
     (zip marginal-values marginal-probs)))
 
 (for-each pretty-print
-          (marginalize-expr '(list (flip .1) (flip .3))))
+          (marginalize-expr '(list ((lambda (x) (not x)) (flip .1)) (flip .5))))
