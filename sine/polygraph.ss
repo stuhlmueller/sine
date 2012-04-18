@@ -85,10 +85,11 @@
                                      (task->link-weight task))
                       (cons value (task->link-label task))))))])
      (graph:register-callback! graph subroot-id terminal->task)
-     (if subroot-is-new
-         (enqueue! queue (make-task subthunk subroot-id 0.0 #t))
-         (enqueue! queue (make-task (lambda ()
-                                      (for-each (lambda (terminal-id) (enqueue! queue (terminal->task terminal-id)))
-                                                (graph:reachable-terminals graph subroot-id))))))))
+     (enqueue! queue
+               (if subroot-is-new
+                   (make-task subthunk subroot-id 0.0 #t)
+                   (make-task (lambda ()
+                                (for-each (lambda (terminal-id) (enqueue! queue (terminal->task terminal-id)))
+                                          (graph:reachable-terminals graph subroot-id))))))))
 
  )
