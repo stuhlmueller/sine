@@ -313,6 +313,7 @@
          (list 'cons cons)
          (list 'null? null?)
          (list 'list list)
+         (list 'not not)
          (list '+ +)
          (list '- -)
          (list '* *)
