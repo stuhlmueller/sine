@@ -29,21 +29,18 @@
          [queue (make-queue (make-task thunk 'root 0.0 #t))])
      (graph:add-node! graph 'root)
      (graph:set-root! graph 'root)
-     (build-graph graph queue)))
-
- (define (build-graph graph queue)
-   (let loop ()
-     (if (queue-empty? queue)
-         graph
-         (let ([task (dequeue! queue)])
-           (when (not (void? task))
-                 (let ([node ((task->thunk task))])
-                   (cond [(void? node) #f]
-                         [(xrp? node) (build-graph:xrp! graph queue task node)]
-                         [(recur? node) (build-graph:recur! graph queue task node)]
-                         [(terminal? node) (build-graph:terminal! graph queue task node)]
-                         [else (error node "build-graph: unknown obj type")])))
-           (loop)))))
+     (let loop ()
+       (if (queue-empty? queue)
+           graph
+           (let ([task (dequeue! queue)])
+             (when (not (void? task))
+                   (let ([node ((task->thunk task))])
+                     (cond [(void? node) #f]
+                           [(xrp? node) (build-graph:xrp! graph queue task node)]
+                           [(recur? node) (build-graph:recur! graph queue task node)]
+                           [(terminal? node) (build-graph:terminal! graph queue task node)]
+                           [else (error node "build-graph: unknown obj type")])))
+             (loop))))))
 
  (define (build-graph:xrp! graph queue task xrp)
    (for-each (lambda (value score)
