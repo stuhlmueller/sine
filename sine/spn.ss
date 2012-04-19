@@ -1,14 +1,20 @@
 #!r6rs
 
-;; TODO:
-;; - store root node for each spn node
-;; - extract mapping from values to ids (for terminals, interpreter state)
-;; - make sure that we enqueue each callback only once per value
-;;   - we're not merging terminals in build-spn:terminal! (against current implicit semantics)
-;;   - if we notice previously seen terminals for a subroot in build-spn:terminal!, do we not
-;;     need to check that ecah callback is only called once?
-;; - extract into spn data structured that can be returned in its entirety from build-spn
+;; Todo:
+;; - write remainder of algorithm that solves spn
+;; - extract spn info into data structured that can be returned in its
+;;   entirety from build-spn
 ;; - make interpreter state hashing incremental
+;;
+;; Analysis:
+;; - show that it is impossible to call a callback more than once per value
+;; - show that we don't duplicate edges
+;; - show that message passing does not change asymptotic complexity
+
+;; Notes:
+;; - Object hashing takes place whenever we use terminal-id and recur-id
+;; - the dupe check in get-terminal-ids (used in build-spn:recur!
+;;   via store-callback) is linear in the number of terms
 
 (library
 
@@ -17,7 +23,11 @@
  (export build-spn)
 
  (import (rnrs)
+         (scheme-tools srfi-compat :1)
          (scheme-tools queue)
+         (only (scheme-tools) gensym)
+         (sine coroutine-interpreter)
+         (sine coroutine-id)
          (sine delimcc-simple-r6rs))
 
  (define (make-subthunk recur)
@@ -39,47 +49,79 @@
 
    (define spn:edges (make-eq-hashtable))
    (define spn:nodetypes (make-eq-hashtable))
-   (define spn:indicator-vals (make-eq-hashtable))
-   (define spn:ref-vals (make-eq-hashtable))
+   (define spn:indicator-ids (make-eq-hashtable))
+   (define spn:ref-ids (make-eq-hashtable))
    (define spn:ref-subroot-ids (make-eq-hashtable))
    (define spn:probs (make-eq-hashtable))
    (define spn:roots (make-eq-hashtable))
    (define spn:callbacks (make-eq-hashtable))
-   (define spn:terminals (make-eq-hashtable))
+   (define spn:terminal-ids (make-eq-hashtable))
+   (define spn:recur-id (make-eq-hashtable))
+   (define spn:terminal-id (make-eq-hashtable))
+
+   (define (object-id/tracked get-obj-id get-obj-state spn:obj-id obj obj-type)
+     (let* ([obj-id (get-obj-id obj)]
+            [spn-id (hashtable-ref spn:obj-id obj-id #f)])
+       (if spn-id
+           (values spn-id #f)
+           (let ([id (gensym obj-type)])
+             (hashtable-set! spn:obj-id (get-obj-state obj) id)
+             (values id #t)))))
+
+   (define (recur-id/tracked recur)
+     (object-id/tracked recur-id recur-state spn:recur-id recur 'subroot))
 
    (define (get-root-id id)
-     (hash-table-ref spn:roots id))
+     (let* ([err (gensym)]
+            [root-id (hashtable-ref spn:roots id err)])
+       (assert (not (eq? err root-id)))
+       root-id))
 
    (define (store-root-id! id root-id)
      (hashtable-set! spn:roots id root-id))
 
    (define (get-callbacks root-id)
-     (hashtable-ref/default spn:callbacks root-id '()))
+     (hashtable-ref spn:callbacks root-id '()))
 
    (define (store-callback! source-id source-cont subroot-id)
      (let* ([old-callbacks (get-callbacks subroot-id)]
             [updated-callbacks (cons (make-callback source-id source-cont) old-callbacks)]
-            [enq! (lambda (t) (enqueue! queue (make-task source-id (lambda () (source-cont )t))))])
-       (hash-table-set! spn:callbacks subroot-id updated-callbacks)
-       (for-each enq! (get-terminals subroot-it))))
+            [enq! (lambda (t) (enqueue! queue (make-task source-id (lambda () (source-cont t)))))])
+       (hashtable-set! spn:callbacks subroot-id updated-callbacks)
+       (for-each enq! (get-terminals subroot-id))))
 
-   (define (store-terminal! root-id terminal)
-     (hash-table-set! spn:terminals
-                      root-id
-                      (cons terminal (get-terminals root-id))))
+   (define (cons-if-new obj lst eql?)
+     (if (any (lambda (x) (eql? x obj)) lst)
+         (values lst #f)
+         (values (cons obj lst) #t)))
+
+   ;; LINEAR IN THE NUMBER OF TERMINALS
+   (define (store-terminal-id! root-id terminal-id)
+     (let-values ([(new-terminal-ids id-is-new)
+                   (cons-if-new terminal-id
+                                (get-terminal-ids root-id)
+                                eq?)])
+       (hashtable-set! spn:terminal-ids
+                       root-id
+                       new-terminal-ids)
+       id-is-new))
+
+   (define (get-terminal-ids root-id)
+     (hashtable-ref spn:terminal-ids root-id '()))
 
    (define (get-terminals root-id)
-     (hash-table-ref/default spn:terminals root-id '()))
+     (map terminal-id->value (get-terminal-ids root-id)))
 
    (define (make-edge! from to)
      (hashtable-set! spn:edges
                      from
-                     (cons to (hashtable-get spn:edges from '()))))
+                     (cons to (hashtable-ref spn:edges from '()))))
 
    (define (make-spn-node! parent-id node-type)
      (let ([node-id (gensym node-type)])
        (make-edge! parent-id node-id)
        (hashtable-set! spn:nodetypes node-id node-type)
+       (store-root-id! node-id (get-root-id parent-id))
        node-id))
 
    (define (make-sum-node! parent-id)
@@ -88,22 +130,23 @@
    (define (make-product-node! parent-id)
      (make-spn-node! parent-id 'product))
 
-   (define (make-indicator-node! parent-id terminal)
+   (define (make-indicator-node! parent-id terminal-id)
      (let ([ind-id (make-spn-node! parent-id 'indicator)])
-       (hashtable-set spn:indicator-vals ind-id terminal)))
+       (hashtable-set! spn:indicator-ids ind-id terminal-id)))
 
-   (define (make-ref-node! parent-id subroot-id terminal)
+   (define (make-ref-node! parent-id subroot-id terminal-id)
      (let ([ref-id (make-spn-node! parent-id 'ref)])
-       (hashtable-set spn:ref-vals ref-id terminal)
-       (hashtable-set spn:ref-subroot-ids ref-id subroot-id)
+       (hashtable-set! spn:ref-ids ref-id terminal-id)
+       (hashtable-set! spn:ref-subroot-ids ref-id subroot-id)
        ref-id))
 
    (define (make-prob-node! parent-id prob)
      (let ([prob-id (make-spn-node! parent-id 'prob)])
-       (hashtable-set spn:probs prob-id prob)
+       (hashtable-set! spn:probs prob-id prob)
        prob-id))
 
    (define (make-root-node! id)
+     (store-root-id! id id)
      (hashtable-set! spn:nodetypes id 'root))
 
 
@@ -117,7 +160,7 @@
          (cond [(xrp? val) (build-spn:xrp! last-id val)]
                [(recur? val) (build-spn:recur! last-id val)]
                [(terminal? val) (build-spn:terminal! last-id val)]
-               [else (error val "unknown object type")]))))
+               [else (error val "build-spn: unknown object type")]))))
 
 
    ;; Algorithm
@@ -133,28 +176,28 @@
                  (xrp-probs xrp))))
 
    (define (build-spn:terminal! last-id terminal)
-     (let ([root-id (get-root-id last-id)]
-           [enq! (lambda (cb)
-                   (let ([product-id (make-product-node! (callback->source-id cb))])
-                     (make-ref-node! product-id root-id terminal)
-                     (enqueue! queue
-                               (make-task product-id
-                                          (lambda () ((callback->source-cont cb) terminal))))))])
-       (make-indicator-node! last-id terminal)
-       (store-terminal! root-id terminal)
-       (for-each enq! (get-callbacks root-id))))
+     (let* ([root-id (get-root-id last-id)]
+            [term-id (terminal-id terminal)]
+            [enq! (lambda (cb)
+                    (let ([product-id (make-product-node! (callback->source-id cb))])
+                      (make-ref-node! product-id root-id term-id)
+                      (enqueue! queue
+                                (make-task product-id
+                                           (lambda () ((callback->source-cont cb)
+                                                  (terminal-value terminal)))))))]
+            [term-is-new (store-terminal-id! root-id term-id)])
+       (if term-is-new
+           (begin
+             (make-indicator-node! last-id term-id)
+             (for-each enq! (get-callbacks root-id)))
+           (make-edge! last-id term-id))))
 
    (define (build-spn:recur! last-id recur)
-     (let ([sum-id (make-sum-node! last-id)]
-           [subroot-id
-            (hash-table-ref state->id
-                            (recur-state recur)
-                            (lambda ()
-                              (let ([id (gensym)])
-                                (make-root-node! id)
-                                (hash-table-set! state->id (recur-state recur) id)
-                                (enqueue! queue (make-task id (make-subthunk recur)))
-                                id)))])
+     (let-values ([(sum-id) (make-sum-node! last-id)]
+                  [(subroot-id subroot-new) (recur-id/tracked recur)])
+       (when subroot-new
+             (make-root-node! subroot-id)
+             (enqueue! queue (make-task subroot-id (make-subthunk recur))))
        (store-callback! sum-id (lambda (t) ((recur-cont recur) t)) subroot-id)))
 
    (define (process-queue!)
@@ -167,7 +210,7 @@
      (make-root-node! 'root)
      (enqueue! queue (make-task 'root root-thunk))
      (process-queue!)
-     spn)
+     spn:edges)
 
    (main))))
 
