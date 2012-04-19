@@ -8,8 +8,7 @@
          recur-id?
          terminal-id
          terminal-id?
-         terminal-id->value
-         get-id)
+         terminal-id->value)
 
  (import (rnrs)
          (sine coroutine-interpreter)
@@ -33,10 +32,5 @@
 
  (define (recur-id? obj)
    (prefixed-symbol? obj 'rec))
-
- (define (get-id obj)
-   (cond [(recur? obj) (recur-id obj)]
-         [(terminal? obj) (terminal-id obj)]
-         [else (error obj "get-id not implemented for given object type.")]))
 
  )
