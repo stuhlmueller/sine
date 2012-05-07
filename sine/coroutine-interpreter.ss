@@ -5,6 +5,7 @@
  (sine coroutine-interpreter)
 
  (export coroutine-interpreter
+         coroutine-interpreter/xrp
          make-xrp
          xrp-cont
          xrp-vals
@@ -22,6 +23,8 @@
  (import (rnrs)
          (sine interpreter)
          (sine delimcc-simple-r6rs))
+
+ ;; Return at xrps and recursive calls
 
  (define-record-type xrp
    (fields cont vals probs))
@@ -43,5 +46,17 @@
    (reset (make-terminal (interpreter expr
                                       coroutine-recur
                                       coroutine-source))))
+
+ ;; Return only at xrps
+
+ (define coroutine-source/xrp coroutine-source)
+
+ (define (coroutine-recur/xrp expr env)
+   (interpreter-eval expr env coroutine-recur/xrp coroutine-source/xrp))
+
+ (define (coroutine-interpreter/xrp expr)
+   (reset (make-terminal (interpreter expr
+                                      coroutine-recur/xrp
+                                      coroutine-source/xrp))))
 
  )
