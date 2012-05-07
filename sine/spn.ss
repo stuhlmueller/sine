@@ -2,6 +2,8 @@
 
 ;; Todo:
 ;; - write remainder of algorithm that solves spn
+;;   spn->equations
+;;   solve-equations using toposort
 ;; - extract spn info into data structured that can be returned in its
 ;;   entirety from build-spn
 ;; - make interpreter state hashing incremental
@@ -10,6 +12,7 @@
 ;; - show that it is impossible to call a callback more than once per value
 ;; - show that we don't duplicate edges
 ;; - show that message passing does not change asymptotic complexity
+;; - does merging at terminals matter?
 
 ;; Notes:
 ;; - Object hashing takes place whenever we use terminal-id and recur-id
@@ -32,8 +35,8 @@
 
  (define (make-subthunk recur)
    (lambda () (reset (make-terminal
-                 (apply (recur-call recur)
-                        (recur-state recur))))))
+                      (apply (recur-call recur)
+                             (recur-state recur))))))
 
  (define (make-callback source-id source-cont)
    (list 'callback source-id source-cont))
@@ -50,7 +53,7 @@
    (define spn:edges (make-eq-hashtable))
    (define spn:nodetypes (make-eq-hashtable))
    (define spn:indicator-ids (make-eq-hashtable))
-   (define spn:ref-ids (make-eq-hashtable))
+   (define spn:ref-terminal-ids (make-eq-hashtable))
    (define spn:ref-subroot-ids (make-eq-hashtable))
    (define spn:probs (make-eq-hashtable))
    (define spn:roots (make-eq-hashtable))
@@ -136,7 +139,7 @@
 
    (define (make-ref-node! parent-id subroot-id terminal-id)
      (let ([ref-id (make-spn-node! parent-id 'ref)])
-       (hashtable-set! spn:ref-ids ref-id terminal-id)
+       (hashtable-set! spn:ref-terminal-ids ref-id terminal-id)
        (hashtable-set! spn:ref-subroot-ids ref-id subroot-id)
        ref-id))
 
@@ -184,7 +187,7 @@
                       (enqueue! queue
                                 (make-task product-id
                                            (lambda () ((callback->source-cont cb)
-                                                  (terminal-value terminal)))))))]
+                                                       (terminal-value terminal)))))))]
             [term-is-new (store-terminal-id! root-id term-id)])
        (if term-is-new
            (begin
