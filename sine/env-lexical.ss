@@ -20,13 +20,7 @@
          extend-environment
          lookup-variable-value-and-id
          lookup-value-by-id
-         lookup-variable-value
-         define-variable!
-         ;; add-binding-to-frame!
-         ;; set-variable-value!
-         ;; relative-env-equiv
-         ;; frames-equiv?
-         )
+         lookup-variable-value)
 
  (import (rnrs)
          (scheme-tools srfi-compat :43)
@@ -103,17 +97,17 @@
 
  ;; below here are the parts that use mutation (used only for define)
 
- (define (add-binding-to-frame! var val frame)
-   (vector-set! frame 0 (vector-append (vector var) (frame-variables frame)))
-   (vector-set! frame 1 (vector-append (vector val) (frame-values frame)))) ;; defined variables are treated as possibly changed.
+ ;; (define (add-binding-to-frame! var val frame)
+ ;;   (vector-set! frame 0 (vector-append (vector var) (frame-variables frame)))
+ ;;   (vector-set! frame 1 (vector-append (vector val) (frame-values frame))))
 
  ;; this is used in trace-eval.ss to implement define..
- (define (define-variable! var val env)
-   (let* ((frame (first-frame env))
-          (var-index (vector-index (lambda (v) (eq? v var)) (frame-variables frame))))
-     (if (not var-index);ie. (#f? var-index)
-         (add-binding-to-frame! var val frame)
-         (vector-set! (frame-values frame) var-index val))))
+ ;; (define (define-variable! var val env)
+ ;;   (let* ((frame (first-frame env))
+ ;;          (var-index (vector-index (lambda (v) (eq? v var)) (frame-variables frame))))
+ ;;     (if (not var-index)
+ ;;         (add-binding-to-frame! var val frame)
+ ;;         (vector-set! (frame-values frame) var-index val))))
 
  ;; ;; this one is used only in trace-constraint-propagation.ss
  ;; (define (set-variable-value! var val env)

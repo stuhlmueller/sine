@@ -112,23 +112,6 @@
                     ,(begin-wrap (rest condition))
                     ,(loop (rest conditions)) ) )))))
 
- (define (mem-rec? expr) (tagged-list? expr 'mem-rec))
-
- (define (desugar-mem-rec expr)
-   (if (not (eq? (first (third expr)) 'lambda))
-       (error "second argument to mem-rec must be lambda expression.")
-       (let ((fn-symbol (second expr))
-             (fn-args (second (third expr)))
-             (fn-body (third (third expr)))
-             (F (gensym))
-             (G (gensym)))
-         `(let ((,F
-                 (mem
-                  (lambda ,(pair G fn-args)
-                    (let ((,fn-symbol (lambda ,fn-args (,G ,G ,@fn-args))))
-                      ,fn-body)))))
-            (lambda ,fn-args (,F ,F ,@fn-args))))))
-
  (define (define-fn? expr)
    (and (tagged-list? expr 'define) (not (symbol? (second expr)))))
 
@@ -146,13 +129,28 @@
      (lambda () (begin ,@(drop-right (rest expr) 2)
                   (pair ,(list-ref expr (- (length expr) 2)) ,(last expr))))))
 
+ (define (begin-defines? sexpr)
+   (and (tagged-list? sexpr 'begin)
+        (not (null? (filter (lambda (e) (tagged-list? e 'define)) sexpr)))))
+
+ (define (desugar-define-value sexpr)
+   (if (define-fn? sexpr)
+       (desugar-define-fn sexpr)
+       sexpr))
+
+ (define (desugar-begin-defines sexpr)
+   (let* ([defines (map desugar-define-value
+                        (filter (lambda (e) (tagged-list? e 'define)) (rest sexpr)))]
+          [non-defines (filter (lambda (e) (not (tagged-list? e 'define))) (rest sexpr))])
+     `(let* ,(map rest defines) ,(begin-wrap non-defines))))
+
  (register-sugar! let? let->lambda)
  (register-sugar! let*? desugar-let*)
  (register-sugar! named-let? named-let->lambda)
  (register-sugar! case? desugar-case)
  (register-sugar! cond? desugar-cond)
- (register-sugar! mem-rec? desugar-mem-rec)
- (register-sugar! define-fn? desugar-define-fn)
  (register-sugar! rejection? desugar-rejection)
+ (register-sugar! begin-defines? desugar-begin-defines)
+ (register-sugar! define-fn? desugar-define-fn)
 
  )

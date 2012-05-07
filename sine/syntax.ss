@@ -10,7 +10,6 @@
          self-evaluating?
          syntax:quoted?
          quoted?
-         ;;text-of-quotation
          quote-syntax->text-of-quotation
          variable?
          syntax:variable?
@@ -34,11 +33,6 @@
          syntax:get-env?
          application?
          syntax:application?
-         ;;operator
-         ;;operands
-         ;;no-operands?
-         ;;first-operand
-         ;;rest-operands
          make-syntax
          sexpr->syntax
          syntax->type
@@ -83,7 +77,7 @@
    (cond ((number? exp) #t)
          ((string? exp) #t)
          ((char? exp) #t)
-         ((eq? exp 'mem) #t)
+         ;; ((eq? exp 'mem) #t)
          ((eq? exp 'eval) #t)
          ((eq? exp 'apply) #t)
          ((eq? exp 'make-xrp) #t)
@@ -161,22 +155,7 @@
  (define (if-syntax->if-alternative syntax)
    (if-alternative (syntax->expr syntax)))
 
- ;;(define (make-if predicate consequent alternative)
- ;;  (list 'if predicate consequent alternative))
-
  (define (application? exp) (pair? exp))
- ;;(define (operator exp) (car exp))
- ;;(define (operands exp) (cdr exp))
-
- ;;(define (no-operands? ops) (null? ops))
- ;;(define (first-operand ops) (car ops))
- ;;(define (rest-operands ops) (cdr ops))
-
- ;;(define (load? expr) (tagged-list? expr 'load))
- ;;(define (load-file expr) (second expr))
- ;;(define (file->list filehandle)
- ;;  (let ((next (read filehandle)))
- ;;    (if (eof-object? next) '() (cons next (file->list filehandle)))))
 
  (define (top-level? expr) (tagged-list? expr 'top-level))
 
@@ -187,7 +166,6 @@
          ((null? params) (list))
          (else (pair (first params)
                      (plist->list (rest params)) ))))
-
 
  (define (sexpr->syntax sugared-sexpr env)
 
@@ -205,15 +183,6 @@
       (let ((sexpr (desugar sugared-sexpr))
             (recurse (lambda (subexpr) (sexpr->syntax subexpr env)) ))
         (cond
-         ;;;begin allows internal defines with mutual recursion, so
-         ;;;here extend env with all defined vars:
-         ((begin? sexpr)
-          (let* ((defined-variables (extract-defined-vars sexpr))
-                 (env (extend-environment defined-variables defined-variables env)))
-            (make-syntax 'begin
-                         sugared-sexpr
-                         (pair 'begin (map-in-order (lambda (subexpr) (sexpr->syntax subexpr env)) (rest sexpr)))
-                         defined-variables)))
          ((self-evaluating? sexpr) (make-syntax 'self-evaluating sugared-sexpr sexpr) )
          ((variable? sexpr) (let ((lexical-address (rest (lookup-variable-value-and-id sexpr env))))
                               (make-syntax 'variable sugared-sexpr sexpr lexical-address) ))
@@ -223,12 +192,8 @@
                                                       (extend-environment (plist->list formal-parameters)
                                                                           (plist->list formal-parameters)
                                                                           env ))))
-                            (make-syntax 'lambda sugared-sexpr `(lambda ,formal-parameters ,body)) ))
+                            (make-syntax 'lambda sugared-sexpr `(lambda ,formal-parameters ,body))))
          ((get-env? sexpr) (make-syntax 'get-env sugared-sexpr sexpr))
-         ((definition? sexpr) (let* ((dvar (definition-variable sexpr)))
-                                (define-variable! dvar dvar env)
-                                (let ((dvalue (recurse (definition-value sexpr))))
-                                  (make-syntax 'definition sugared-sexpr `(define ,dvar ,dvalue)) )))
          ((if? sexpr) (make-syntax 'if sugared-sexpr  (cons 'if (map recurse (rest sexpr)))))
          ((application? sexpr) (make-syntax 'application sugared-sexpr (map recurse sexpr)))
          (else (error "Unknown expression type:" sexpr)) )))))

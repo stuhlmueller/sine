@@ -6,8 +6,11 @@
 
 (pretty-print
  (desugar-all
-  '(let* ([x 1]
-          [y 2])
-     (+ x y))))
+  '(begin
+     (define x 1)
+     (define (f x) (* x x))
+     (let* ([y 2]
+            [z 3])
+       (f (+ x y))))))
 
 

@@ -33,11 +33,9 @@
 
  (define (eval-dispatch-fn syntax)
    (cond [(syntax:self-evaluating? syntax) eval-self-evaluating]
-         [(syntax:begin? syntax) eval-begin]
          [(syntax:variable? syntax) eval-variable]
          [(syntax:quoted? syntax) eval-quoted]
          [(syntax:lambda? syntax) eval-lambda]
-         [(syntax:definition? syntax) eval-definition]
          [(syntax:if? syntax) eval-if]
          [(syntax:application? syntax) eval-application]
          [else (error syntax "eval: unknown expression type")]))
@@ -50,12 +48,6 @@
    (if (true? (recur (if-syntax->if-predicate syntax) env))
        (recur (if-syntax->if-consequent syntax) env)
        (recur (if-syntax->if-alternative syntax) env)))
-
- (define (eval-definition syntax env recur source)
-   (define-variable! (definition-syntax->definition-variable syntax)
-     (recur (definition-syntax->definition-value syntax) env)
-     env)
-   'ok)
 
  (define (eval-lambda syntax env recur source)
    (make-procedure (lambda-syntax->lambda-parameters syntax)
@@ -83,11 +75,6 @@
        '()
        (cons (recur (first exps) env)
              (list-of-values (rest exps) env recur))))
-
- (define (eval-begin syntax env recur source)
-   (let* ([defined-vars (first (syntax->details syntax))]
-          [env (extend-environment defined-vars defined-vars env)])
-     (eval-sequence (rest (syntax->expr syntax)) env recur)))
 
  (define (eval-sequence exps env recur)
    (cond ((null? (cdr exps)) (recur (first exps) env))
