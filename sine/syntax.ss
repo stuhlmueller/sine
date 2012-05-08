@@ -36,29 +36,28 @@
          make-syntax
          sexpr->syntax
          syntax->type
-         syntax->id
          syntax->details
          syntax->original-expr
          syntax->expr
          syntax?
-         extract-defined-vars
-         write-with-syntax-ids)
+         extract-defined-vars)
 
  (import (rnrs)
          (scheme-tools srfi-compat :1)
-         (only (scheme-tools) gensym tagged-list? rest pair)
+         (only (scheme-tools) tagged-list? rest pair)
          (sine desugar)
          (sine env-lexical))
 
- ;;; syntax ADT
+
+ ;; Syntax ADT
+
  (define (make-syntax type original-expr expr . type-specific)
-   (vector 'syntax type (gensym) type-specific original-expr expr) )
+   (vector 'syntax type type-specific original-expr expr) )
  (define (syntax? s) (and (vector? s) (eq? 'syntax (vector-ref s 0))))
  (define (syntax->type s) (vector-ref s 1))
- (define (syntax->id s) (vector-ref s 2))
- (define (syntax->details s) (vector-ref s 3))
- (define (syntax->original-expr s) (vector-ref s 4))
- (define (syntax->expr s) (vector-ref s 5)) ;;;this is a list of syntax objects comming from the original sub-exprs.
+ (define (syntax->details s) (vector-ref s 2))
+ (define (syntax->original-expr s) (vector-ref s 3))
+ (define (syntax->expr s) (vector-ref s 4))
 
  (define (syntax:is-type sym) (lambda (sobj) (eq? sym (syntax->type sobj))))
  (define syntax:self-evaluating? (syntax:is-type 'self-evaluating))
@@ -71,17 +70,43 @@
  (define syntax:get-env? (syntax:is-type 'get-env))
  (define syntax:application? (syntax:is-type 'application))
 
- ;; mem, eval, apply, create-xrp are treated as self-evaluating, but
- ;; application is treated specially.
+ (define (quote-syntax->text-of-quotation syntax)
+   (text-of-quotation (syntax->expr syntax)))
+
+ (define (definition-syntax->definition-variable syntax)
+   (second (syntax->expr syntax)))
+
+ (define (definition-syntax->definition-value syntax)
+   (third (syntax->expr syntax)))
+
+ (define (lambda-syntax->lambda-parameters syntax)
+   (lambda-parameters (syntax->expr syntax)))
+
+ (define (lambda-syntax->lambda-body syntax)
+   (lambda-body (syntax->expr syntax)))
+
+ (define (if-syntax->if-predicate syntax)
+   (if-predicate (syntax->expr syntax)))
+
+ (define (if-syntax->if-consequent syntax)
+   (if-consequent (syntax->expr syntax)))
+
+ (define (if-syntax->if-alternative syntax)
+   (if-alternative (syntax->expr syntax)))
+
+
+ ;; SEXPRs
+
  (define (self-evaluating? exp)
-   (cond ((number? exp) #t)
+   (cond ((boolean? exp) #t)
+         ((number? exp) #t)
          ((string? exp) #t)
          ((char? exp) #t)
-         ;; ((eq? exp 'mem) #t)
-         ((eq? exp 'eval) #t)
-         ((eq? exp 'apply) #t)
-         ((eq? exp 'make-xrp) #t)
          ((equal? exp '()) #t)
+         ;; ((eq? exp 'eval) #t)
+         ;; ((eq? exp 'apply) #t)
+         ;; ((eq? exp 'mem) #t)
+         ;; ((eq? exp 'make-xrp) #t)
          (else #f)))
 
  (define (quoted? exp)
@@ -89,9 +114,6 @@
 
  (define (text-of-quotation exp)
    (cadr exp))
-
- (define (quote-syntax->text-of-quotation syntax)
-   (text-of-quotation (syntax->expr syntax)))
 
  (define (variable? exp) (symbol? exp))
 
@@ -105,29 +127,17 @@
        (cadr exp)
        (caadr exp)))
 
- (define (definition-syntax->definition-variable syntax)
-   (second (syntax->expr syntax)))
-
  (define (definition-value exp)
    (if (symbol? (cadr exp))
        (caddr exp)
        (make-lambda (cdadr exp)
                     (cddr exp))))
 
- (define (definition-syntax->definition-value syntax)
-   (third (syntax->expr syntax)))
-
  (define (lambda? exp) (tagged-list? exp 'lambda))
 
  (define (lambda-parameters exp) (cadr exp))
 
  (define (lambda-body exp) (caddr exp))
-
- (define (lambda-syntax->lambda-parameters syntax)
-   (lambda-parameters (syntax->expr syntax)))
-
- (define (lambda-syntax->lambda-body syntax)
-   (lambda-body (syntax->expr syntax)))
 
  (define (make-lambda parameters body)
    (cons 'lambda (cons parameters body)))
@@ -136,13 +146,7 @@
 
  (define (if-predicate exp) (cadr exp))
 
- (define (if-syntax->if-predicate syntax)
-   (if-predicate (syntax->expr syntax)))
-
  (define (if-consequent exp) (caddr exp))
-
- (define (if-syntax->if-consequent syntax)
-   (if-consequent (syntax->expr syntax)))
 
  (define (get-env? exp)
    (tagged-list? exp 'get-current-environment))
@@ -152,14 +156,14 @@
        (cadddr exp)
        'false))
 
- (define (if-syntax->if-alternative syntax)
-   (if-alternative (syntax->expr syntax)))
-
  (define (application? exp) (pair? exp))
 
  (define (top-level? expr) (tagged-list? expr 'top-level))
 
  (define top-level-sequence rest)
+
+
+ ;; SEXPR to Syntax
 
  (define (plist->list params)
    (cond ((symbol? params) (list params))
@@ -200,17 +204,5 @@
 
  (define (extract-defined-vars seq)
    (filter-map (lambda (expr) (if (definition? expr) (definition-variable expr) #f)) seq))
-
- (define (write-with-syntax-ids syntax . depth)
-   (if (syntax? syntax)
-       (let ((depth (if (null? depth) 0 (first depth))))
-         (display (syntax->id syntax))
-         (display ": ")
-         (display (syntax->original-expr syntax))
-         (display "\n")
-         (if (list? (syntax->expr syntax))
-             (map (lambda (s) (write-with-syntax-ids s (+ 1 depth))) (rest (syntax->expr syntax)))
-             '()))
-       '()))
 
  )
