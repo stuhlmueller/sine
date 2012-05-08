@@ -36,13 +36,11 @@
 
  ;; Syntax ADT
 
- (define (make-syntax type original-expr expr . type-specific)
-   (vector 'syntax type type-specific original-expr expr) )
+ (define (make-syntax type original-expr expr)
+   (vector 'syntax type original-expr expr))
  (define (syntax? s) (and (vector? s) (eq? 'syntax (vector-ref s 0))))
  (define (syntax->type s) (vector-ref s 1))
- (define (syntax->details s) (vector-ref s 2))
- (define (syntax->original-expr s) (vector-ref s 3))
- (define (syntax->expr s) (vector-ref s 4))
+ (define (syntax->expr s) (vector-ref s 3))
 
  (define (syntax:is-type sym) (lambda (sobj) (eq? sym (syntax->type sobj))))
  (define syntax:self-evaluating? (syntax:is-type 'self-evaluating))
@@ -80,7 +78,7 @@
    (if-alternative (syntax->expr syntax)))
 
  (define (variable-syntax->lexical-address syntax)
-   (first (syntax->details syntax)))
+   (syntax->expr syntax))
 
  (define (self-evaluating-syntax->value syntax)
    (syntax->expr syntax))
@@ -186,7 +184,7 @@
         (cond
          ((self-evaluating? sexpr) (make-syntax 'self-evaluating sugared-sexpr sexpr) )
          ((variable? sexpr) (let ((lexical-address (rest (lookup-variable-value-and-id sexpr env))))
-                              (make-syntax 'variable sugared-sexpr sexpr lexical-address) ))
+                              (make-syntax 'variable sugared-sexpr lexical-address) ))
          ((quoted? sexpr) (make-syntax 'quoted sugared-sexpr sexpr))
          ((lambda? sexpr) (let* ((formal-parameters (lambda-parameters sexpr))
                                  (body (sexpr->syntax (lambda-body sexpr)
