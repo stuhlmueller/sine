@@ -18,9 +18,6 @@
          if-syntax->if-alternative
          syntax:application?
          quote-syntax->text-of-quotation
-         syntax:definition?
-         definition-syntax->definition-variable
-         definition-syntax->definition-value
          variable-syntax->lexical-address
          self-evaluating-syntax->value
          application-syntax->operator-syntax
@@ -37,17 +34,28 @@
  ;; Syntax ADT
 
  (define (make-syntax type original-expr expr)
-   (vector 'syntax type original-expr expr))
+   (vector 'syntax type expr original-expr))
  (define (syntax? s) (and (vector? s) (eq? 'syntax (vector-ref s 0))))
  (define (syntax->type s) (vector-ref s 1))
- (define (syntax->expr s) (vector-ref s 3))
+ (define (syntax->expr s) (vector-ref s 2))
+
+ ;; (define (make-syntax type original-expr expr)
+ ;;   (&vector (map obj->& 'syntax type original-expr expr) ))
+ ;; (define (syntax? s) (and (&vector? s) (eq? 'syntax (&val (&vector-ref s 0)))))
+ ;; (define (syntax->type s) (&val (&vector-ref s 1)))
+ ;; (define (syntax->expr s) (&val (&vector-ref s 3)))
+
+ ;; (define (syntax->original-expr s) (&val (vector-ref s 3)))
+
+ ;; ??? if there are compound objs here, we
+ ;; ??? only partially expand--so maybe not expand at all?
+ ;; mostly used as syntax objs
 
  (define (syntax:is-type sym) (lambda (sobj) (eq? sym (syntax->type sobj))))
  (define syntax:self-evaluating? (syntax:is-type 'self-evaluating))
  (define syntax:quoted? (syntax:is-type 'quoted))
  (define syntax:variable? (syntax:is-type 'variable))
  (define syntax:begin? (syntax:is-type 'begin))
- (define syntax:definition? (syntax:is-type 'definition))
  (define syntax:lambda? (syntax:is-type 'lambda))
  (define syntax:if? (syntax:is-type 'if))
  (define syntax:get-env? (syntax:is-type 'get-env))
@@ -55,12 +63,6 @@
 
  (define (quote-syntax->text-of-quotation syntax)
    (text-of-quotation (syntax->expr syntax)))
-
- (define (definition-syntax->definition-variable syntax)
-   (second (syntax->expr syntax)))
-
- (define (definition-syntax->definition-value syntax)
-   (third (syntax->expr syntax)))
 
  (define (lambda-syntax->lambda-parameters syntax)
    (lambda-parameters (syntax->expr syntax)))
@@ -113,20 +115,6 @@
  (define (variable? exp) (symbol? exp))
 
  (define (begin? expr)  (tagged-list? expr 'begin))
-
- (define (definition? exp)
-   (tagged-list? exp 'define))
-
- (define (definition-variable exp)
-   (if (symbol? (cadr exp))
-       (cadr exp)
-       (caadr exp)))
-
- (define (definition-value exp)
-   (if (symbol? (cadr exp))
-       (caddr exp)
-       (make-lambda (cdadr exp)
-                    (cddr exp))))
 
  (define (lambda? exp) (tagged-list? exp 'lambda))
 
@@ -196,8 +184,5 @@
          ((if? sexpr) (make-syntax 'if sugared-sexpr  (cons 'if (map recurse (rest sexpr)))))
          ((application? sexpr) (make-syntax 'application sugared-sexpr (map recurse sexpr)))
          (else (error "Unknown expression type:" sexpr)) )))))
-
- (define (extract-defined-vars seq)
-   (filter-map (lambda (expr) (if (definition? expr) (definition-variable expr) #f)) seq))
 
  )
