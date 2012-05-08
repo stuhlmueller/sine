@@ -58,15 +58,15 @@
    (quote-syntax->text-of-quotation syntax))
 
  (define (eval-variable syntax env recur source)
-   (let [(lexical-address (first (syntax->details syntax)))]
+   (let [(lexical-address (variable-syntax->lexical-address syntax))]
      (first (lookup-value-by-id lexical-address env))))
 
  (define (eval-self-evaluating syntax env recur source)
-   (syntax->expr syntax))
+   (self-evaluating-syntax->value syntax))
 
  (define (eval-application syntax env recur source)
-   (apply (recur (first (syntax->expr syntax)) env)
-          (list-of-values (rest (syntax->expr syntax)) env recur)
+   (apply (recur (application-syntax->operator-syntax syntax) env)
+          (list-of-values (application-syntax->operands-syntax syntax) env recur)
           recur
           source))
 

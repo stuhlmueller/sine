@@ -7,40 +7,25 @@
  (sine syntax)
 
  (export syntax:self-evaluating?
-         self-evaluating?
-         syntax:quoted?
-         quoted?
-         quote-syntax->text-of-quotation
-         variable?
          syntax:variable?
-         begin?
-         syntax:begin?
-         definition?
-         syntax:definition?
-         definition-syntax->definition-variable
-         definition-syntax->definition-value
-         lambda?
+         syntax:quoted?
          syntax:lambda?
          lambda-syntax->lambda-parameters
          lambda-syntax->lambda-body
-         make-lambda
-         if?
          syntax:if?
          if-syntax->if-predicate
          if-syntax->if-consequent
          if-syntax->if-alternative
-         get-env?
-         syntax:get-env?
-         application?
          syntax:application?
-         make-syntax
-         sexpr->syntax
-         syntax->type
-         syntax->details
-         syntax->original-expr
-         syntax->expr
-         syntax?
-         extract-defined-vars)
+         quote-syntax->text-of-quotation
+         syntax:definition?
+         definition-syntax->definition-variable
+         definition-syntax->definition-value
+         variable-syntax->lexical-address
+         self-evaluating-syntax->value
+         application-syntax->operator-syntax
+         application-syntax->operands-syntax
+         sexpr->syntax)
 
  (import (rnrs)
          (scheme-tools srfi-compat :1)
@@ -93,6 +78,18 @@
 
  (define (if-syntax->if-alternative syntax)
    (if-alternative (syntax->expr syntax)))
+
+ (define (variable-syntax->lexical-address syntax)
+   (first (syntax->details syntax)))
+
+ (define (self-evaluating-syntax->value syntax)
+   (syntax->expr syntax))
+
+ (define (application-syntax->operator-syntax syntax)
+   (first (syntax->expr syntax)))
+
+ (define (application-syntax->operands-syntax syntax)
+   (rest (syntax->expr syntax)))
 
 
  ;; SEXPRs
