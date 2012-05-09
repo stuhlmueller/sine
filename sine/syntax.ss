@@ -10,6 +10,7 @@
          syntax:variable?
          syntax:quoted?
          syntax:lambda?
+         syntax?
          lambda-syntax->lambda-parameters
          lambda-syntax->lambda-body
          syntax:if?
@@ -26,30 +27,30 @@
 
  (import (rnrs)
          (scheme-tools srfi-compat :1)
-         (only (scheme-tools) tagged-list? rest pair)
+         (only (scheme-tools) tagged-list? rest pair pretty-print)
          (sine desugar)
+         (sine value-number)
          (sine env-lexical))
 
 
+ ;; --------------------------------------------------------------------
  ;; Syntax ADT
 
- (define (make-syntax type original-expr expr)
-   (vector 'syntax type expr original-expr))
- (define (syntax? s) (and (vector? s) (eq? 'syntax (vector-ref s 0))))
- (define (syntax->type s) (vector-ref s 1))
- (define (syntax->expr s) (vector-ref s 2))
+ (define (make-syntax type original-expr &sub)
+   (compress-vector (vector (compress-symbol 'syntax)
+                            (compress-symbol type)
+                            (compress-recursive original-expr)
+                            &sub)))
 
- ;; (define (make-syntax type original-expr expr)
- ;;   (&vector (map obj->& 'syntax type original-expr expr) ))
- ;; (define (syntax? s) (and (&vector? s) (eq? 'syntax (&val (&vector-ref s 0)))))
- ;; (define (syntax->type s) (&val (&vector-ref s 1)))
- ;; (define (syntax->expr s) (&val (&vector-ref s 3)))
+ (define (syntax? s)
+   (and (&vector? s)
+        (eq? 'syntax (&expand-symbol (&vector-ref s 0)))))
 
- ;; (define (syntax->original-expr s) (&val (vector-ref s 3)))
+ (define (syntax->type s)
+   (&expand-symbol (&vector-ref s 1)))
 
- ;; ??? if there are compound objs here, we
- ;; ??? only partially expand--so maybe not expand at all?
- ;; mostly used as syntax objs
+ (define (syntax->&sub s)
+   (&vector-ref s 3))
 
  (define (syntax:is-type sym) (lambda (sobj) (eq? sym (syntax->type sobj))))
  (define syntax:self-evaluating? (syntax:is-type 'self-evaluating))
@@ -58,40 +59,40 @@
  (define syntax:begin? (syntax:is-type 'begin))
  (define syntax:lambda? (syntax:is-type 'lambda))
  (define syntax:if? (syntax:is-type 'if))
- (define syntax:get-env? (syntax:is-type 'get-env))
  (define syntax:application? (syntax:is-type 'application))
 
  (define (quote-syntax->text-of-quotation syntax)
-   (text-of-quotation (syntax->expr syntax)))
+   (&expand-recursive (syntax->&sub syntax)))
 
  (define (lambda-syntax->lambda-parameters syntax)
-   (lambda-parameters (syntax->expr syntax)))
+   (&expand-recursive (&car (syntax->&sub syntax))))
 
  (define (lambda-syntax->lambda-body syntax)
-   (lambda-body (syntax->expr syntax)))
+   (&cadr (syntax->&sub syntax)))
 
  (define (if-syntax->if-predicate syntax)
-   (if-predicate (syntax->expr syntax)))
+   (&car (syntax->&sub syntax)))
 
  (define (if-syntax->if-consequent syntax)
-   (if-consequent (syntax->expr syntax)))
+   (&cadr (syntax->&sub syntax)))
 
  (define (if-syntax->if-alternative syntax)
-   (if-alternative (syntax->expr syntax)))
+   (&caddr (syntax->&sub syntax)))
 
  (define (variable-syntax->lexical-address syntax)
-   (syntax->expr syntax))
+   (&expand-recursive (syntax->&sub syntax)))
 
  (define (self-evaluating-syntax->value syntax)
-   (syntax->expr syntax))
+   (&expand-recursive (syntax->&sub syntax)))
 
  (define (application-syntax->operator-syntax syntax)
-   (first (syntax->expr syntax)))
+   (&car (syntax->&sub syntax)))
 
  (define (application-syntax->operands-syntax syntax)
-   (rest (syntax->expr syntax)))
+   (&expand-list (&cdr (syntax->&sub syntax))))
 
 
+ ;; --------------------------------------------------------------------
  ;; SEXPRs
 
  (define (self-evaluating? exp)
@@ -109,35 +110,23 @@
  (define (quoted? exp)
    (tagged-list? exp 'quote))
 
- (define (text-of-quotation exp)
-   (cadr exp))
-
  (define (variable? exp) (symbol? exp))
 
  (define (begin? expr)  (tagged-list? expr 'begin))
 
  (define (lambda? exp) (tagged-list? exp 'lambda))
 
+ (define (make-lambda parameters body)
+   (cons 'lambda (cons parameters body)))
+
  (define (lambda-parameters exp) (cadr exp))
 
  (define (lambda-body exp) (caddr exp))
 
- (define (make-lambda parameters body)
-   (cons 'lambda (cons parameters body)))
-
  (define (if? exp) (tagged-list? exp 'if))
-
- (define (if-predicate exp) (cadr exp))
-
- (define (if-consequent exp) (caddr exp))
 
  (define (get-env? exp)
    (tagged-list? exp 'get-current-environment))
-
- (define (if-alternative exp)
-   (if (not (null? (cdddr exp)))
-       (cadddr exp)
-       'false))
 
  (define (application? exp) (pair? exp))
 
@@ -146,6 +135,7 @@
  (define top-level-sequence rest)
 
 
+ ;; --------------------------------------------------------------------
  ;; SEXPR to Syntax
 
  (define (plist->list params)
@@ -170,19 +160,43 @@
       (let ((sexpr (desugar sugared-sexpr))
             (recurse (lambda (subexpr) (sexpr->syntax subexpr env)) ))
         (cond
-         ((self-evaluating? sexpr) (make-syntax 'self-evaluating sugared-sexpr sexpr) )
-         ((variable? sexpr) (let ((lexical-address (rest (lookup-variable-value-and-id sexpr env))))
-                              (make-syntax 'variable sugared-sexpr lexical-address) ))
-         ((quoted? sexpr) (make-syntax 'quoted sugared-sexpr sexpr))
-         ((lambda? sexpr) (let* ((formal-parameters (lambda-parameters sexpr))
-                                 (body (sexpr->syntax (lambda-body sexpr)
-                                                      (extend-environment (plist->list formal-parameters)
-                                                                          (plist->list formal-parameters)
-                                                                          env ))))
-                            (make-syntax 'lambda sugared-sexpr `(lambda ,formal-parameters ,body))))
-         ((get-env? sexpr) (make-syntax 'get-env sugared-sexpr sexpr))
-         ((if? sexpr) (make-syntax 'if sugared-sexpr  (cons 'if (map recurse (rest sexpr)))))
-         ((application? sexpr) (make-syntax 'application sugared-sexpr (map recurse sexpr)))
-         (else (error "Unknown expression type:" sexpr)) )))))
+
+         [(self-evaluating? sexpr)
+          (make-syntax 'self-evaluating
+                       sugared-sexpr
+                       (compress-recursive sexpr))]
+
+         [(variable? sexpr)
+          (let ((lexical-address (rest (lookup-variable-value-and-id sexpr env))))
+            (make-syntax 'variable
+                         sugared-sexpr
+                         (compress-recursive lexical-address)))]
+
+         [(quoted? sexpr)
+          (make-syntax 'quoted
+                       sugared-sexpr
+                       (compress-recursive (cadr sexpr)))]
+
+         [(lambda? sexpr)
+          (let* ((formal-parameters (lambda-parameters sexpr))
+                 (body (sexpr->syntax (lambda-body sexpr)
+                                      (extend-environment (plist->list formal-parameters)
+                                                          (plist->list formal-parameters)
+                                                          env))))
+            (make-syntax 'lambda
+                         sugared-sexpr
+                         (compress-list (list (compress-recursive formal-parameters) body))))]
+
+         [(if? sexpr)
+          (make-syntax 'if
+                       sugared-sexpr
+                       (compress-list (map recurse (rest sexpr))))]
+
+         [(application? sexpr)
+          (make-syntax 'application
+                       sugared-sexpr
+                       (compress-list (map recurse sexpr)))]
+
+         [else (error "Unknown expression type:" sexpr)] )))))
 
  )
