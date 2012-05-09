@@ -1,7 +1,7 @@
 #!r6rs
 
 ;; FIXME: make sure probability of hash collisions is low
-;; FIXME: Make &expand-all more robust (don't rely on &... symbols not being used elsewhere)
+;; FIXME: Make &expand-recursive more robust (don't rely on &... symbols not being used elsewhere)
 ;;
 ;; All functions that start with & take value numbers as arguments.
 
@@ -9,19 +9,33 @@
 
  (sine value-number)
 
- (export obj->&
-         &id
-         &expand
-         &expand-all
-         &cons
+ (export &cadddr
+         &cddddr
+         &caddr
+         &cdddr
+         &cadr
+         &cddr
          &car
          &cdr
-         &cadr
-         &caddr
-         &cadddr
+         compress-boolean
+         compress-list
+         compress-number
+         compress-pair
+         compress-recursive
+         compress-symbol
+         compress-vector
+         &cons
+         &expand-boolean
+         &expand-list
+         &expand-number
+         &expand-pair
+         &expand-recursive
+         &expand-symbol
+         &expand-vector
+         &id
          &vector
-         &vector?
-         &vector-ref)
+         &vector-ref
+         &vector?)
 
  (import (rnrs)
          (sine hashtable)
@@ -63,7 +77,7 @@
                (vector->list (vector-map &equal? obj1 obj2)))]
          [else #f]))
 
- (define (node info)
+ (define (flat-obj->num info)
    (hashtable-ref/default number-store
                           info
                           (lambda ()
@@ -75,55 +89,119 @@
    (and (symbol? obj)
         (prefixed-symbol? obj '&)))
 
- (define (obj->& obj)
-   (cond [(&value-number? obj) (error obj "don't compute value numbers of value numbers!")]
-         [(null? obj) (node '())]
-         [(pair? obj) (node (cons (obj->& (car obj)) (obj->& (cdr obj))))]
-         [(vector? obj) (node (vector-map obj->& obj))]
-         [(symbol? obj) (node obj)]
-         [(number? obj) (node obj)]
-         [(boolean? obj) (node obj)]
-         [else (error obj "obj->&: unknown object type")]))
 
- (define (&expand n)
-   (hashtable-ref obj-store n not-found))
+ ;; --------------------------------------------------------------------
+ ;; One-step and recursive compression and expansion
 
- (define (&expand-all n)
+ (define (make-typed-compressor is-type?)
+   (lambda (obj)
+     (assert (is-type? obj))
+     (flat-obj->num obj)))
+
+ (define compress-pair (make-typed-compressor pair?))
+
+ (define compress-vector (make-typed-compressor vector?))
+
+ (define compress-number (make-typed-compressor number?))
+
+ (define compress-symbol (make-typed-compressor symbol?))
+
+ (define compress-boolean (make-typed-compressor boolean?))
+
+ (define (compress-list ns)
+   (assert (list? ns))
+   (if (null? ns)
+       (flat-obj->num '())
+       (&cons (car ns) (compress-list (cdr ns)))))
+
+ (define (compress-recursive obj)
+   (assert (not (&value-number? obj)))
+   (cond [(null? obj) (flat-obj->num '())]
+         [(pair? obj) (flat-obj->num (cons (compress-recursive (car obj))
+                                           (compress-recursive (cdr obj))))]
+         [(vector? obj) (flat-obj->num (vector-map compress-recursive obj))]
+         [(symbol? obj) (flat-obj->num obj)]
+         [(number? obj) (flat-obj->num obj)]
+         [(boolean? obj) (flat-obj->num obj)]
+         [else (error obj "compress-recursive: unknown object type")]))
+
+ (define (make-typed-expander is-type?)
+   (lambda (n)
+     (let ([v (hashtable-ref obj-store n not-found)])
+       (when (not (is-type? v))
+             (pretty-print n)
+             (pretty-print v)
+             (pretty-print (&expand-recursive n))
+             (pretty-print is-type?)
+             (assert (is-type? v)))
+       v)))
+
+ (define &expand-pair (make-typed-expander pair?))
+
+ (define &expand-number (make-typed-expander number?))
+
+ (define &expand-symbol (make-typed-expander symbol?))
+
+ (define &expand-vector (make-typed-expander vector?))
+
+ (define &expand-boolean (make-typed-expander boolean?))
+
+ (define (&expand-list n)
+   (let ([obj (hashtable-ref obj-store n not-found)])
+     (cond [(pair? obj) (cons (car obj) (&expand-list (cdr obj)))]
+           [(null? obj) '()]
+           [else (error "&expand-list: number refers to non-list object")])))
+
+ (define (&expand-recursive n)
    (let ([obj (hashtable-ref obj-store n not-found)])
      (if (not-found? obj)
          n
-         (cond [(symbol? obj) (&expand-all obj)]
-               [(vector? obj) (vector-map &expand-all obj)]
-               [(pair? obj) (cons (&expand-all (car obj)) (&expand-all (cdr obj)))]
+         (cond [(symbol? obj) (&expand-recursive obj)]
+               [(vector? obj) (vector-map &expand-recursive obj)]
+               [(pair? obj) (cons (&expand-recursive (car obj)) (&expand-recursive (cdr obj)))]
                [else obj]))))
 
- (define (&cons n1 n2)
-   (node (cons n1 n2)))
 
- (define (&vector . ns)
-   (node (list->vector ns)))
-
- (define (&vector? n)
-   (vector? (&expand n)))
-
- (define (&vector-ref n i)
-   (vector-ref (&expand n) i))
+ ;; --------------------------------------------------------------------
+ ;; Operations on compressed data structures:
 
  (define (&id n)
    n)
 
- (define (lift proc)
-   (lambda (x)
-     (proc (&expand x))))
+ (define (&cons n1 n2)
+   (flat-obj->num (cons n1 n2)))
 
- (define &car (lift car))
+ (define (&vector . ns)
+   (flat-obj->num (list->vector ns)))
 
- (define &cdr (lift cdr))
+ (define (&vector? n)
+   (vector? (&expand-vector n)))
 
- (define &cadr (lift cadr))
+ (define (&vector-ref n i)
+   (vector-ref (&expand-vector n) i))
 
- (define &caddr (lift caddr))
+ (define (&car n)
+   (car (&expand-pair n)))
 
- (define &cadddr (lift cadddr))
+ (define (&cdr n)
+   (cdr (&expand-pair n)))
+
+ (define (&cadr n)
+   (car (&expand-pair (&cdr n))))
+
+ (define (&cddr n)
+   (cdr (&expand-pair (&cdr n))))
+
+ (define (&caddr n)
+   (car (&expand-pair (&cddr n))))
+
+ (define (&cdddr n)
+   (cdr (&expand-pair (&cddr n))))
+
+ (define (&cadddr n)
+   (car (&expand-pair (&cdddr n))))
+
+ (define (&cddddr n)
+   (cdr (&expand-pair (&cdddr n))))
 
  )
