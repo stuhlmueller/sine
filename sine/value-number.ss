@@ -1,6 +1,6 @@
 #!r6rs
 
-;; FIXME: make sure probability of hash collisions is low
+;; FIXME: make sure probability of hash collisions is low (all primitive procedures in one bucket)
 ;; FIXME: Make &expand-recursive more robust (don't rely on &... symbols not being used elsewhere)
 ;;
 ;; All functions that start with & take value numbers as arguments.
@@ -18,6 +18,7 @@
          &cddr
          &cdr
          &cons
+         &eq?
          &expand-boolean
          &expand-list
          &expand-null
@@ -26,7 +27,11 @@
          &expand-recursive
          &expand-symbol
          &expand-vector
+         &expand-procedure
          &id
+         &list
+         &list-ref
+         &tagged-list?
          &vector
          &vector-ref
          &vector?
@@ -37,14 +42,17 @@
          compress-pair
          compress-recursive
          compress-symbol
-         compress-vector)
+         compress-vector
+         compress-procedure)
 
- (import (rnrs)
+ (import (except (rnrs) bitwise-rotate-bit-field)
+         (only (bitwise) bitwise-rotate-bit-field)
          (sine hashtable)
          (only (scheme-tools)
                symbol-maker
                prefixed-symbol?
                pretty-print
+               sym-append
                gensym
                sum
                all
@@ -56,35 +64,56 @@
 
  (define (not-found? obj) (eq? obj not-found))
 
- (define number-store (make-hashtable &hash &equal?))
+ (define number-store (make-hashtable flat-hash flat-equal?))
 
  (define obj-store (make-eq-hashtable))
 
- (define (&hash obj)
-   (cond [(null? obj) 3]
-         [(boolean? obj) (if obj 5 7)]
-         [(pair? obj) (&hash (+ (&hash (car obj)) (&hash (cdr obj))))]
-         [(symbol? obj) (symbol-hash obj)]
-         [(number? obj) (mod obj (- (expt 2 29) 3))]
-         [(vector? obj) (&hash (sum (vector->list (vector-map &hash obj))))]
-         [else (error obj "cannot hash obj type")]))
+ (define smoosh
+   (let ((garbler (floor (* 9/13 (greatest-fixnum))))
+         (width (- (fixnum-width) 1)))
+     (lambda (left right)
+       (bitwise-xor left
+                    (bitwise-rotate-bit-field right 0 width (- width 5))
+                    garbler))))
 
- (define (&equal? obj1 obj2)
-   (cond [(eqv? obj1 obj2) #t]
+ (define (flat-vector-hash vec)
+   (let loop ([n (vector-length vec)])
+     (if (= n 0)
+         1
+         (smoosh (symbol-hash (vector-ref vec (- n 1)))
+                 (loop (- n 1))))))
+
+ (define (flat-number-hash obj)
+   (mod obj (- (expt 2 29) 3)))
+
+ (define (flat-hash obj)
+   (flat-number-hash
+    (cond [(null? obj) 381823]
+          [(boolean? obj) (if obj 51991 77597)]
+          [(pair? obj) (smoosh (symbol-hash (car obj)) (symbol-hash (cdr obj)))]
+          [(symbol? obj) (symbol-hash obj)]
+          [(number? obj) obj]
+          [(vector? obj) (flat-vector-hash obj)]
+          [(procedure? obj) 1748131]
+          [else (error obj "cannot hash obj type")])))
+
+ (define (flat-equal? obj1 obj2)
+   (cond [(eq? obj1 obj2) #t]
          [(and (pair? obj1) (pair? obj2))
-          (and (&equal? (car obj1) (car obj2))
-               (&equal? (cdr obj1) (cdr obj2)))]
-         [(and (vector? obj1) (vector? obj2))
+          (and (eq? (car obj1) (car obj2))
+               (eq? (cdr obj1) (cdr obj2)))]
+         [(and (vector? obj1) (vector? obj2)
+               (= (vector-length obj1) (vector-length obj2)))
           (all (lambda (x) x)
-               (vector->list (vector-map &equal? obj1 obj2)))]
+               (vector->list (vector-map eq? obj1 obj2)))]
          [else #f]))
 
- (define (flat-obj->num info)
+ (define (flat-obj->num flat-obj)
    (hashtable-ref/default number-store
-                          info
+                          flat-obj
                           (lambda ()
                             (let ([id (readable-gensym)])
-                              (hashtable-set! obj-store id info)
+                              (hashtable-set! obj-store id flat-obj)
                               id))))
 
  (define (&value-number? obj)
@@ -112,6 +141,14 @@
 
  (define compress-boolean (make-typed-compressor boolean?))
 
+ (define (compress-procedure proc name)
+   (hashtable-ref/default number-store
+                          proc
+                          (lambda ()
+                            (let ([id (sym-append '&proc name)])
+                              (hashtable-set! obj-store id proc)
+                              id))))
+
  (define (compress-list ns)
    (assert (list? ns))
    (if (null? ns)
@@ -127,16 +164,24 @@
          [(symbol? obj) (flat-obj->num obj)]
          [(number? obj) (flat-obj->num obj)]
          [(boolean? obj) (flat-obj->num obj)]
+         [(procedure? obj)
+          (begin
+            (display "Compressing procedure using gensym id...\n")
+            (compress-procedure obj (readable-gensym)))]
          [else (error obj "compress-recursive: unknown object type")]))
+
+ (define (&expand-step n)
+   (assert (&value-number? n))
+   (hashtable-ref obj-store n not-found))
 
  (define (make-typed-expander is-type?)
    (lambda (n)
-     (let ([v (hashtable-ref obj-store n not-found)])
+     (let ([v (&expand-step n)])
        (when (not (is-type? v))
-             (pretty-print n)
-             (pretty-print v)
-             (pretty-print (&expand-recursive n))
-             (pretty-print is-type?)
+             (pe "value number: " n "\n")
+             (pe "flat hashtable result for n: " v "\n")
+             (pe "fully expanded n: " (&expand-recursive n) "\n")
+             (pe "expected type: " is-type? "\n")
              (assert (is-type? v)))
        v)))
 
@@ -151,6 +196,8 @@
  (define &expand-vector (make-typed-expander vector?))
 
  (define &expand-boolean (make-typed-expander boolean?))
+
+ (define &expand-procedure (make-typed-expander procedure?))
 
  (define (&expand-list n)
    (let ([obj (hashtable-ref obj-store n not-found)])
@@ -171,8 +218,19 @@
  ;; --------------------------------------------------------------------
  ;; Operations on compressed data structures:
 
+ (define (&eq? n1 n2)
+   (eq? n1 n2))
+
  (define (&id n)
    n)
+
+ (define (&list . args)
+   (compress-list args))
+
+ (define (&list-ref n i)
+   (if (= i 0)
+       (&car n)
+       (&list-ref (&cdr n) (- i 1))))
 
  (define (&cons n1 n2)
    (flat-obj->num (cons n1 n2)))
@@ -209,5 +267,8 @@
 
  (define (&cddddr n)
    (cdr (&expand-pair (&cdddr n))))
+
+ (define (&tagged-list? n sym)
+   (eq? (&expand-symbol (&car n)) sym))
 
  )

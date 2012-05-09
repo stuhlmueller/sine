@@ -13,33 +13,38 @@
          lookup-variable-id)
 
  (import (rnrs)
+         (sine value-number)
          (scheme-tools srfi-compat :43)
          (scheme-tools srfi-compat :1))
 
 
  ;; --------------------------------------------------------------------
- ;; Frame ADT
+ ;; Frame ADT (compressed)
 
  (define (make-frame variables values)
-   (vector (list->vector variables) (list->vector values)))
+   (&vector (compress-recursive (list->vector variables))
+            (apply &vector values)))
 
- (define (first-frame env) (car env))
+ (define (first-frame &env)
+   (&car &env))
 
- (define (frame-variables frame) (vector-ref frame 0))
+ (define (frame-variables frame)
+   (&vector-ref frame 0))
 
- (define (frame-values frame) (vector-ref frame 1))
+ (define (frame-values frame)
+   (&vector-ref frame 1))
 
 
  ;; --------------------------------------------------------------------
- ;; Environment ADT
+ ;; Environment ADT (compressed)
 
- (define the-empty-environment (list))
+ (define the-empty-environment (compress-null '()))
 
  (define (enclosing-environment env)
-   (cdr env))
+   (&cdr env))
 
- (define (extend-environment vars vals base-env)
-   (cons (make-frame vars vals) base-env))
+ (define (extend-environment vars vals &base-env)
+   (&cons (make-frame vars vals) &base-env))
 
 
  ;; --------------------------------------------------------------------
@@ -47,28 +52,30 @@
  ;;
  ;; Address is (frame-loc . var-loc)
 
- (define (lookup-variable-value-and-id var top-env)
-   (let ((frame-loc 0))
-     (define (env-loop env)
-       (define (find-var vars vals)
-         (let ((var-index (vector-index (lambda (v) (eq? v var)) vars)))
+ (define (lookup-variable-value-and-id var &top-env)
+   (let ([frame-loc 0])
+     (define (env-loop &env)
+       (define (find-var vars &vals)
+         (let ([var-index (vector-index (lambda (v) (eq? v var))
+                                        vars)])
            (if (not var-index)
                (begin (set! frame-loc (+ frame-loc 1))
-                      (env-loop (enclosing-environment env)))
-               (cons (vector-ref vals var-index) (cons frame-loc var-index)))))
-       (if (eq? env the-empty-environment)
+                      (env-loop (enclosing-environment &env)))
+               (cons (&vector-ref &vals var-index)
+                     (cons frame-loc var-index)))))
+       (if (&eq? &env the-empty-environment)
            (raise-continuable "Unbound variable")
-           (let ((frame (first-frame env)))
-             (find-var (frame-variables frame)
-                       (frame-values frame) ))))
-     (env-loop top-env)))
+           (let ([&frame (first-frame &env)])
+             (find-var (&expand-recursive (frame-variables &frame))
+                       (frame-values &frame)))))
+     (env-loop &top-env)))
 
- (define (lookup-value-by-id address env)
-   (vector-ref (frame-values (list-ref env (car address)))
-               (cdr address)))
+ (define (lookup-value-by-id address &env)
+   (&vector-ref (frame-values (&list-ref &env (car address)))
+                (cdr address)))
 
- (define (lookup-variable-id var env)
-   (let ((value-and-id (lookup-variable-value-and-id var env)))
+ (define (lookup-variable-id var &env)
+   (let ((value-and-id (lookup-variable-value-and-id var &env)))
      (cdr value-and-id)))
 
  )

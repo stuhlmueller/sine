@@ -23,8 +23,10 @@
          (sine env-lexical)
          (sine syntax)
          (sine desugar)
+         (sine primitives)
+         (sine value-number)
          (scheme-tools srfi-compat :1)
-         (only (scheme-tools) true? false? rest pair tagged-list?)
+         (only (scheme-tools) true? false? rest pair tagged-list? compose pe)
          (only (scheme-tools math) random-real))
 
 
@@ -86,10 +88,12 @@
  ;; Apply
 
  (define (apply-dispatch-fn procedure)
-   (cond [(primitive-procedure? procedure) apply-primitive-procedure]
-         [(random-primitive-procedure? procedure) apply-random-primitive-procedure]
+   (cond [(deterministic-primitive-procedure? procedure) apply-deterministic-primitive-procedure]
+         [(stochastic-primitive-procedure? procedure) apply-stochastic-primitive-procedure]
          [(compound-procedure? procedure) apply-compound-procedure]
-         [else (error procedure "apply: unknown procedure type")]))
+         [else (begin
+                 (pe "got: " (&expand-recursive procedure) "\n")
+                 (error procedure "apply: unknown procedure type"))]))
 
  (define (apply procedure arguments recur source)
    (let ([dispatch-fn (apply-dispatch-fn procedure)])
@@ -104,101 +108,76 @@
     recur
     source))
 
- (define (apply-primitive-procedure proc args recur source)
-   (scheme-apply (primitive-implementation proc) args))
 
- (define (apply-random-primitive-procedure proc args recur source)
-   (scheme-apply (random-primitive-implementation proc)
-                 (cons source args)))
+ ;; --------------------------------------------------------------------
+ ;; Procedure data type (compressed)
+
+ (define (make-procedure parameters &body &env)
+   (&list (compress-symbol 'procedure)
+          (compress-recursive parameters)
+          &body
+          &env))
+
+ (define (compound-procedure? &p)
+   (&tagged-list? &p 'procedure))
+
+ (define (procedure-parameters p)
+   (&expand-recursive (&cadr p)))
+
+ (define (procedure-body p)
+   (&caddr p))
+
+ (define (procedure-environment p)
+   (&cadddr p))
 
 
  ;; --------------------------------------------------------------------
- ;; Procedure data type
+ ;; Primitive procedures, generic (compressed)
 
- (define (make-procedure parameters body env)
-   (list 'procedure parameters body env))
+ (define (primitive-implementation &proc)
+   (&expand-procedure (&cadr &proc)))
 
- (define (compound-procedure? p)
-   (tagged-list? p 'procedure))
+ (define (primitive-procedure-names procs)
+   (map car procs))
 
- (define (procedure-parameters p) (cadr p))
-
- (define (procedure-body p) (caddr p))
-
- (define (procedure-environment p) (cadddr p))
-
-
- ;; --------------------------------------------------------------------
- ;; Primitive procedures
-
- (define (primitive-procedure? proc)
-   (tagged-list? proc 'primitive))
-
- (define (primitive-implementation proc) (cadr proc))
-
- (define primitive-procedures
-   (list (list 'car car)
-         (list 'cdr cdr)
-         (list 'cons cons)
-         (list 'null? null?)
-         (list 'list list)
-         (list 'not not)
-         (list 'or (lambda l (any (lambda (x) x) l)))
-         (list 'and (lambda l (every (lambda (x) x) l)))
-         (list '= =)
-         (list '+ +)
-         (list '- -)
-         (list '* *)
-         (list '/ /)))
-
- (define (primitive-procedure-names)
-   (map car
-        primitive-procedures))
-
- (define (primitive-procedure-objects)
-   (map (lambda (proc) (list 'primitive (cadr proc)))
-        primitive-procedures))
-
-
- ;; --------------------------------------------------------------------
- ;; Random primitive procedures
-
- (define (random-primitive-procedure? proc)
-   (tagged-list? proc 'rand))
-
- (define (random-primitive-implementation proc)
-   (cadr proc))
-
- (define (flip source . ?p)
-   (let ([p (if (null? ?p) .5 (car ?p))])
-     (let ([bit (source p)])
-       bit)))
-
- (define random-primitive-procedures
-   (list (list 'flip flip)))
-
- (define (random-primitive-procedure-names)
-   (map car random-primitive-procedures))
-
- (define (random-primitive-procedure-objects)
-   (map (lambda (proc) (list 'rand (cadr proc)))
-        random-primitive-procedures))
+ (define (primitive-procedure-objects procs type-symbol)
+   (map (lambda (proc) (&list (compress-symbol type-symbol)
+                         (compress-procedure (cadr proc) (car proc))))
+        procs))
 
  (define (all-primitive-names)
-   (append (primitive-procedure-names)
-           (random-primitive-procedure-names)
-           (primitive-constant-names)))
+   (append (primitive-procedure-names deterministic-primitive-procedures)
+           (primitive-procedure-names stochastic-primitive-procedures)
+           (map car primitive-constants)))
 
  (define (all-primitive-objects)
-   (append (primitive-procedure-objects)
-           (random-primitive-procedure-objects)
-           (primitive-constant-objects)))
+   (append (primitive-procedure-objects deterministic-primitive-procedures 'primitive)
+           (primitive-procedure-objects stochastic-primitive-procedures 'rand)
+           (map (compose compress-recursive cdr) primitive-constants)))
 
- (define (primitive-constant-names)
-   (list 'true 'false))
 
- (define (primitive-constant-objects)
-   (list #t #f))
+ ;; --------------------------------------------------------------------
+ ;; Deterministic primitive procedures (compressed)
+
+ (define (deterministic-primitive-procedure? &proc)
+   (&tagged-list? &proc 'primitive))
+
+ (define (apply-deterministic-primitive-procedure &proc args recur source)
+   (compress-recursive
+    (scheme-apply (primitive-implementation &proc)
+                  (map &expand-recursive args))))
+
+
+ ;; --------------------------------------------------------------------
+ ;; Stochastic primitive procedures (compressed)
+
+ (define (stochastic-primitive-procedure? &proc)
+   (&tagged-list? &proc 'rand))
+
+ (define (apply-stochastic-primitive-procedure &proc args recur source)
+   (compress-recursive
+    (scheme-apply (primitive-implementation &proc)
+                  (cons source (map &expand-recursive args)))))
 
 
  ;; --------------------------------------------------------------------
@@ -226,6 +205,6 @@
  (define (sicp-interpreter expr)
    (let ([env (setup-environment)]
          [recur (make-default-recur default-source)])
-     (recur (sexpr->syntax expr env) env)))
+     (&expand-recursive (recur (sexpr->syntax expr env) env))))
 
  )

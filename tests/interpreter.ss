@@ -21,4 +21,5 @@
                     x)))
        (list (blubb 4) (z (f x)) y))))
 
-(display (repeat 10 (lambda () (sicp-interpreter test-prog-norecursion))))
+(for-each pretty-print
+          (repeat 10 (lambda () (sicp-interpreter test-prog-norecursion))))

@@ -62,7 +62,7 @@
  (define syntax:application? (syntax:is-type 'application))
 
  (define (quote-syntax->text-of-quotation syntax)
-   (&expand-recursive (syntax->&sub syntax)))
+   (syntax->&sub syntax))
 
  (define (lambda-syntax->lambda-parameters syntax)
    (&expand-recursive (&car (syntax->&sub syntax))))
@@ -83,7 +83,7 @@
    (&expand-recursive (syntax->&sub syntax)))
 
  (define (self-evaluating-syntax->value syntax)
-   (&expand-recursive (syntax->&sub syntax)))
+   (syntax->&sub syntax))
 
  (define (application-syntax->operator-syntax syntax)
    (&car (syntax->&sub syntax)))
@@ -181,7 +181,8 @@
           (let* ((formal-parameters (lambda-parameters sexpr))
                  (body (sexpr->syntax (lambda-body sexpr)
                                       (extend-environment (plist->list formal-parameters)
-                                                          (plist->list formal-parameters)
+                                                          (map compress-symbol
+                                                               (plist->list formal-parameters))
                                                           env))))
             (make-syntax 'lambda
                          sugared-sexpr
