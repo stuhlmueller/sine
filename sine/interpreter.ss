@@ -213,7 +213,10 @@
    (lambda (p) (< (random-real) p)))
 
  (define (make-default-recur source)
-   (letrec ([recur (lambda (expr env) (eval expr env recur source))])
+   (letrec ([recur (lambda (syntax env)
+                     (begin
+                       (assert (syntax? syntax))
+                       (eval syntax env recur source)))])
      recur))
 
  (define (interpreter expr recur source)
