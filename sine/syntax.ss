@@ -34,7 +34,7 @@
 
 
  ;; --------------------------------------------------------------------
- ;; Syntax ADT
+ ;; Syntax ADT (compressed)
 
  (define (make-syntax type original-expr &sub)
    (compress-vector (vector (compress-symbol 'syntax)

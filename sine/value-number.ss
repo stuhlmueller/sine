@@ -10,23 +10,17 @@
  (sine value-number)
 
  (export &cadddr
-         &cddddr
          &caddr
-         &cdddr
          &cadr
-         &cddr
          &car
+         &cddddr
+         &cdddr
+         &cddr
          &cdr
-         compress-boolean
-         compress-list
-         compress-number
-         compress-pair
-         compress-recursive
-         compress-symbol
-         compress-vector
          &cons
          &expand-boolean
          &expand-list
+         &expand-null
          &expand-number
          &expand-pair
          &expand-recursive
@@ -35,7 +29,15 @@
          &id
          &vector
          &vector-ref
-         &vector?)
+         &vector?
+         compress-boolean
+         compress-list
+         compress-null
+         compress-number
+         compress-pair
+         compress-recursive
+         compress-symbol
+         compress-vector)
 
  (import (rnrs)
          (sine hashtable)
@@ -98,6 +100,8 @@
      (assert (is-type? obj))
      (flat-obj->num obj)))
 
+ (define compress-null (make-typed-compressor null?))
+
  (define compress-pair (make-typed-compressor pair?))
 
  (define compress-vector (make-typed-compressor vector?))
@@ -135,6 +139,8 @@
              (pretty-print is-type?)
              (assert (is-type? v)))
        v)))
+
+ (define &expand-null (make-typed-expander null?))
 
  (define &expand-pair (make-typed-expander pair?))
 
