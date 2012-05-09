@@ -167,7 +167,7 @@
                        (compress-recursive sexpr))]
 
          [(variable? sexpr)
-          (let ((lexical-address (rest (lookup-variable-value-and-id sexpr env))))
+          (let ((lexical-address (lookup-variable-id sexpr env)))
             (make-syntax 'variable
                          sugared-sexpr
                          (compress-recursive lexical-address)))]

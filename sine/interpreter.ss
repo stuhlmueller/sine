@@ -59,7 +59,7 @@
 
  (define (eval-variable syntax env recur source)
    (let [(lexical-address (variable-syntax->lexical-address syntax))]
-     (first (lookup-value-by-id lexical-address env))))
+     (lookup-value-by-id lexical-address env)))
 
  (define (eval-self-evaluating syntax env recur source)
    (self-evaluating-syntax->value syntax))
