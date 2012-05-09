@@ -55,7 +55,6 @@
  (define (extend-environment vars vals base-env)
    (cons (make-frame vars vals) base-env))
 
-
  ;; this returns both the value and the address as a cons (val
  ;; . addr), where address is (frame-loc . var-loc)
  (define (lookup-variable-value-and-id var top-env)
@@ -84,73 +83,5 @@
  (define (lookup-variable-value var env)
    (let ((value-and-id (lookup-variable-value-and-id var env)))
      (car value-and-id)))
- ;; (if (fail? value-and-id) 'fail (car value-and-id))))
-
-
- ;; below here are the parts that use mutation (used only for define)
-
- ;; (define (add-binding-to-frame! var val frame)
- ;;   (vector-set! frame 0 (vector-append (vector var) (frame-variables frame)))
- ;;   (vector-set! frame 1 (vector-append (vector val) (frame-values frame))))
-
- ;; this is used in trace-eval.ss to implement define..
- ;; (define (define-variable! var val env)
- ;;   (let* ((frame (first-frame env))
- ;;          (var-index (vector-index (lambda (v) (eq? v var)) (frame-variables frame))))
- ;;     (if (not var-index)
- ;;         (add-binding-to-frame! var val frame)
- ;;         (vector-set! (frame-values frame) var-index val))))
-
- ;; ;; this one is used only in trace-constraint-propagation.ss
- ;; (define (set-variable-value! var val env)
- ;;   (define (env-loop env)
- ;;     (define (set-var vars vals)
- ;;       (let ((var-index (vector-index (lambda (v) (eq? v var)) vars)))
- ;;         (if (not var-index);ie. (#f? var-index)
- ;;             (env-loop (enclosing-environment env))
- ;;             (vector-set! vals var-index val))))
- ;;     (if (eq? env the-empty-environment)
- ;;         (error "Unbound variable -- SET!" var)
- ;;         (let ((frame (first-frame env)))
- ;;           (set-var (frame-variables frame)
- ;;                    (frame-values frame)))))
- ;;   (env-loop env))
-
-
- ;; tools for checking environment equivalence relative to a set of
- ;; bindings
- ;;
- ;; relevant-bindings should be a list of lists the same
- ;; length as new-env, each of which is the index of variable bindings
- ;; to pay attention to.
- ;; (define (relative-env-equiv new-env old-env relevant-bindings)
- ;;   (if (or (null? relevant-bindings) (eq? new-env old-env))
- ;;       #t
- ;;       (if (or (eq? new-env the-empty-environment) (eq? old-env the-empty-environment))
- ;;           #f
- ;;           (if (frames-equiv? (frame-values (first-frame new-env))
- ;;                              (frame-values (first-frame old-env))
- ;;                              (frame-unchanged (first-frame new-env))
- ;;                              (first relevant-bindings))
- ;;               (relative-env-equiv (enclosing-environment new-env)
- ;;                                   (enclosing-environment old-env)
- ;;                                   (cdr relevant-bindings))
- ;;               #f))))
-
- ;; set this to #f for less fine-grained, but possibly faster eq?-based env-equiv.
- ;; (define CHECK-VALUES-WITH-EQUAL #t)
-
- ;; (define (frames-equiv? new-frame-values old-frame-values unchanged relevant-indices)
- ;;   (if (null? relevant-indices)
- ;;       #t
- ;;       (if (or (vector-ref unchanged (first relevant-indices)) ;;this uses binding-time eq check....
- ;;               (if CHECK-VALUES-WITH-EQUAL
- ;;                   (equal? (vector-ref new-frame-values (first relevant-indices))
- ;;                           (vector-ref old-frame-values (first relevant-indices)))
- ;;                   #f)
- ;;               )
- ;;           (frames-equiv? new-frame-values old-frame-values unchanged (cdr relevant-indices))
- ;;           #f)))
-
 
  )
