@@ -26,27 +26,19 @@
          (scheme-tools srfi-compat :43)
          (scheme-tools srfi-compat :1))
 
- (define mtail cdr)
- (define mpair cons)
- (define mhead car)
- (define mlist-ref list-ref)
- (define head car)
- (define tail cdr)
- (define pair cons)
-
  (define (enclosing-environment env)
-   (mtail env))
+   (cdr env))
 
  ;; adjust a lexical address for passing through a lambda: pop top frame.
  ;; if frame was already 0 (first frame), return null.
  (define (address-in-enclosing-environment lexical-address)
    (if (not (pair? lexical-address)) ; if its not a lexical address, just return it...
        lexical-address
-       (if (= (head lexical-address) 0)
+       (if (= (car lexical-address) 0)
            #f
-           (pair (- (head lexical-address) 1) (tail lexical-address)))))
+           (cons (- (car lexical-address) 1) (cdr lexical-address)))))
 
- (define (first-frame env) (mhead env))
+ (define (first-frame env) (car env))
 
  (define the-empty-environment (list)) ;; we leave this a list so that mutation fails, as it should
 
@@ -61,10 +53,10 @@
    (vector->list (frame-values (first-frame env))))
 
  (define (extend-environment vars vals base-env)
-   (mpair (make-frame vars vals) base-env))
+   (cons (make-frame vars vals) base-env))
 
 
- ;; this returns both the value and the address as a pair (val
+ ;; this returns both the value and the address as a cons (val
  ;; . addr), where address is (frame-loc . var-loc)
  (define (lookup-variable-value-and-id var top-env)
    (let ((frame-loc 0))
@@ -74,7 +66,7 @@
            (if (not var-index)
                (begin (set! frame-loc (+ frame-loc 1))
                       (env-loop (enclosing-environment env)))
-               (pair (vector-ref vals var-index) (pair frame-loc var-index)))))
+               (cons (vector-ref vals var-index) (cons frame-loc var-index)))))
        (if (eq? env the-empty-environment)
            (raise-continuable "Unbound variable")
            (let ((frame (first-frame env)))
@@ -85,14 +77,14 @@
  ;; this uses a lexical address to get a value in an environment,
  ;; returns both the value and the address
  (define (lookup-value-by-id address env)
-   (pair (vector-ref (frame-values (mlist-ref env (head address)))
-                     (tail address))
+   (cons (vector-ref (frame-values (list-ref env (car address)))
+                     (cdr address))
          address))
 
  (define (lookup-variable-value var env)
    (let ((value-and-id (lookup-variable-value-and-id var env)))
-     (head value-and-id)))
- ;; (if (fail? value-and-id) 'fail (head value-and-id))))
+     (car value-and-id)))
+ ;; (if (fail? value-and-id) 'fail (car value-and-id))))
 
 
  ;; below here are the parts that use mutation (used only for define)
@@ -142,7 +134,7 @@
  ;;                              (first relevant-bindings))
  ;;               (relative-env-equiv (enclosing-environment new-env)
  ;;                                   (enclosing-environment old-env)
- ;;                                   (tail relevant-bindings))
+ ;;                                   (cdr relevant-bindings))
  ;;               #f))))
 
  ;; set this to #f for less fine-grained, but possibly faster eq?-based env-equiv.
@@ -157,7 +149,7 @@
  ;;                           (vector-ref old-frame-values (first relevant-indices)))
  ;;                   #f)
  ;;               )
- ;;           (frames-equiv? new-frame-values old-frame-values unchanged (tail relevant-indices))
+ ;;           (frames-equiv? new-frame-values old-frame-values unchanged (cdr relevant-indices))
  ;;           #f)))
 
 
