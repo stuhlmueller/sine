@@ -46,7 +46,7 @@
          compress-procedure)
 
  (import (except (rnrs) bitwise-rotate-bit-field)
-         (only (bitwise) bitwise-rotate-bit-field)
+         (only (sine bitwise) bitwise-rotate-bit-field)
          (sine hashtable)
          (only (scheme-tools)
                symbol-maker

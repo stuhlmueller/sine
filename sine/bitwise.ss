@@ -16,7 +16,7 @@
 
 (library
 
- (bitwise)
+ (sine bitwise)
 
  (export bitwise-not bitwise-and bitwise-ior bitwise-xor bitwise-if
          bitwise-bit-count bitwise-length bitwise-first-bit-set
