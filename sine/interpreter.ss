@@ -47,7 +47,7 @@
      (dispatch-fn syntax env recur source)))
 
  (define (eval-if syntax env recur source)
-   (if (true? (recur (if-syntax->if-predicate syntax) env))
+   (if (true? (&expand-boolean (recur (if-syntax->if-predicate syntax) env)))
        (recur (if-syntax->if-consequent syntax) env)
        (recur (if-syntax->if-alternative syntax) env)))
 
