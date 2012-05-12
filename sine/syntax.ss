@@ -11,6 +11,7 @@
          syntax:quoted?
          syntax:lambda?
          syntax?
+         syntax->&free-vars
          lambda-syntax->lambda-parameters
          lambda-syntax->lambda-body
          syntax:if?
@@ -27,20 +28,22 @@
 
  (import (rnrs)
          (scheme-tools srfi-compat :1)
-         (only (scheme-tools) tagged-list? rest pair pretty-print)
+         (only (scheme-tools) tagged-list? rest pair pretty-print pe)
          (sine desugar)
          (sine value-number)
-         (sine env-lexical))
+         (sine env-flat))
 
 
  ;; --------------------------------------------------------------------
  ;; Syntax ADT (compressed)
 
- (define (make-syntax type original-expr &sub)
+ (define (make-syntax type original-expr &sub . free-vars)
    (compress-vector (vector (compress-symbol 'syntax)
                             (compress-symbol type)
-                            (compress-recursive original-expr)
-                            &sub)))
+                            &sub
+                            (if (null? free-vars)
+                                (compress-boolean #f)
+                                (compress-recursive (car free-vars))))))
 
  (define (syntax? s)
    (and (&vector? s)
@@ -50,6 +53,9 @@
    (&expand-symbol (&vector-ref s 1)))
 
  (define (syntax->&sub s)
+   (&vector-ref s 2))
+
+ (define (syntax->&free-vars s)
    (&vector-ref s 3))
 
  (define (syntax:is-type sym) (lambda (sobj) (eq? sym (syntax->type sobj))))
@@ -134,6 +140,24 @@
 
  (define top-level-sequence rest)
 
+ (define (free-variables sexpr bound-vars)
+   (cond
+    ((begin? sexpr) (apply append (map (lambda (e) (free-variables e bound-vars)) (rest sexpr))))
+    ((quoted? sexpr) '())
+    ((lambda? sexpr)
+     (free-variables (lambda-body sexpr)
+                     (let loop ((params (lambda-parameters sexpr)))
+                       (if (null? params)
+                           bound-vars
+                           (if (pair? params)
+                               (pair (first params) (loop (rest params)))
+                               (pair params bound-vars))))))
+    ((if? sexpr)  (apply append (map (lambda (e) (free-variables e bound-vars)) (rest sexpr))))
+    ((application? sexpr) (apply append (map (lambda (e) (free-variables e bound-vars)) sexpr)))
+    ((symbol? sexpr) (if (memq sexpr bound-vars) '() (list sexpr)))
+    ((self-evaluating? sexpr) '())
+    (else (error sexpr "free-variables: can't handle sexpr type"))))
+
 
  ;; --------------------------------------------------------------------
  ;; SEXPR to Syntax
@@ -178,15 +202,19 @@
                        (compress-recursive (cadr sexpr)))]
 
          [(lambda? sexpr)
-          (let* ((formal-parameters (lambda-parameters sexpr))
-                 (body (sexpr->syntax (lambda-body sexpr)
+          (let* ([formal-parameters (lambda-parameters sexpr)]
+                 [relevant-ids
+                  (list->vector (map (lambda (var) (lookup-variable-id var env))
+                                     (free-variables (desugar-all sexpr) formal-parameters)))]
+                 [body (sexpr->syntax (lambda-body sexpr)
                                       (extend-environment (plist->list formal-parameters)
                                                           (map compress-symbol
                                                                (plist->list formal-parameters))
-                                                          env))))
+                                                          (restrict-environment relevant-ids env)))])
             (make-syntax 'lambda
                          sugared-sexpr
-                         (compress-list (list (compress-recursive formal-parameters) body))))]
+                         (compress-list (list (compress-recursive formal-parameters) body))
+                         relevant-ids))]
 
          [(if? sexpr)
           (make-syntax 'if

@@ -7,6 +7,8 @@
 ;; - interpreter takes two additional arguments:
 ;;   - a function that will be called instead of the interpreter on recursive calls
 ;;   - a function that will be called when the interpreter needs randomness
+;; - all data structures are "compressed" value-number objects
+;; - environments are vectors of relevant variables
 
 (library
 
@@ -20,7 +22,7 @@
 
  (import (rename (rnrs)
                  (apply scheme-apply))
-         (sine env-lexical)
+         (sine env-flat)
          (sine syntax)
          (sine desugar)
          (sine primitives)
@@ -54,14 +56,15 @@
  (define (eval-lambda syntax env recur source)
    (make-procedure (lambda-syntax->lambda-parameters syntax)
                    (lambda-syntax->lambda-body syntax)
-                   env))
+                   (restrict-environment (syntax->&free-vars syntax)
+                                         env)))
 
  (define (eval-quoted syntax env recur source)
    (quote-syntax->text-of-quotation syntax))
 
  (define (eval-variable syntax env recur source)
-   (let [(lexical-address (variable-syntax->lexical-address syntax))]
-     (lookup-value-by-id lexical-address env)))
+   (let [(closure-address (variable-syntax->lexical-address syntax))]
+     (lookup-value-by-id closure-address env)))
 
  (define (eval-self-evaluating syntax env recur source)
    (self-evaluating-syntax->value syntax))
@@ -100,13 +103,12 @@
      (dispatch-fn procedure arguments recur source)))
 
  (define (apply-compound-procedure proc args recur source)
-   (eval
-    (procedure-body proc)
-    (extend-environment (procedure-parameters proc)
-                        args
-                        (procedure-environment proc))
-    recur
-    source))
+   (eval (procedure-body proc)
+         (extend-environment (procedure-parameters proc)
+                             args
+                             (procedure-environment proc))
+         recur
+         source))
 
 
  ;; --------------------------------------------------------------------
