@@ -34,6 +34,9 @@
          &tagged-list?
          &vector
          &vector-ref
+         &vector-append
+         &vector-length
+         &vector-index
          &vector?
          compress-boolean
          compress-list
@@ -47,6 +50,7 @@
 
  (import (except (rnrs) bitwise-rotate-bit-field)
          (only (sine bitwise) bitwise-rotate-bit-field)
+         (only (scheme-tools srfi-compat :43) vector-append)
          (sine hashtable)
          (only (scheme-tools)
                symbol-maker
@@ -243,6 +247,22 @@
 
  (define (&vector-ref n i)
    (vector-ref (&expand-vector n) i))
+
+ (define (&vector-append n1 n2)
+   (compress-vector
+    (vector-append (&expand-vector n1)
+                   (&expand-vector n2))))
+
+ (define (&vector-length n)
+   (vector-length
+    (&expand-vector n)))
+
+ (define (&vector-index proc n)
+   (let ([m (&vector-length n)])
+     (let loop ([i 0])
+       (cond [(= i m) #f]
+             [(proc (&expand-recursive (&vector-ref n i))) i]
+             [else (loop (+ i 1))]))))
 
  (define (&car n)
    (car (&expand-pair n)))
