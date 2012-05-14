@@ -22,6 +22,7 @@
 
  (import (rename (rnrs)
                  (apply scheme-apply))
+         (sine preamble)
          (sine env-flat)
          (sine syntax)
          (sine desugar)
@@ -234,6 +235,6 @@
  (define (sicp-interpreter expr)
    (let ([env (setup-environment)]
          [recur (make-default-recur default-source)])
-     (&expand-recursive (recur (sexpr->syntax expr env) env))))
+     (&expand-recursive (recur (sexpr->syntax (with-preamble expr) env) env))))
 
  )
