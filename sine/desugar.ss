@@ -127,7 +127,7 @@
  (define (desugar-rejection expr)
    `(nfqp-rejection-query
      (lambda () (begin ,@(drop-right (rest expr) 2)
-                  (pair ,(list-ref expr (- (length expr) 2)) ,(last expr))))))
+                       (pair ,(list-ref expr (- (length expr) 2)) ,(last expr))))))
 
  (define (begin-defines? sexpr)
    (and (tagged-list? sexpr 'begin)

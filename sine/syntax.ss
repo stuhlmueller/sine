@@ -107,8 +107,8 @@
          ((string? exp) #t)
          ((char? exp) #t)
          ((equal? exp '()) #t)
+         ((eq? exp 'apply) #t)
          ;; ((eq? exp 'eval) #t)
-         ;; ((eq? exp 'apply) #t)
          ;; ((eq? exp 'mem) #t)
          ;; ((eq? exp 'make-xrp) #t)
          (else #f)))
@@ -140,21 +140,35 @@
 
  (define top-level-sequence rest)
 
+ (define (plist->list params)
+   (cond ((symbol? params) (list params))
+         ((null? params) '())
+         (else (pair (first params)
+                     (plist->list (rest params))))))
+
  (define (free-variables sexpr bound-vars)
    (cond
-    ((begin? sexpr) (apply append (map (lambda (e) (free-variables e bound-vars)) (rest sexpr))))
+    ((begin? sexpr)
+     (apply append
+            (map (lambda (e) (free-variables e bound-vars))
+                 (rest sexpr))))
     ((quoted? sexpr) '())
     ((lambda? sexpr)
      (free-variables (lambda-body sexpr)
-                     (let loop ((params (lambda-parameters sexpr)))
-                       (if (null? params)
-                           bound-vars
-                           (if (pair? params)
-                               (pair (first params) (loop (rest params)))
-                               (pair params bound-vars))))))
-    ((if? sexpr)  (apply append (map (lambda (e) (free-variables e bound-vars)) (rest sexpr))))
-    ((application? sexpr) (apply append (map (lambda (e) (free-variables e bound-vars)) sexpr)))
-    ((symbol? sexpr) (if (memq sexpr bound-vars) '() (list sexpr)))
+                     (append (plist->list (lambda-parameters sexpr))
+                             bound-vars)))
+    ((if? sexpr)
+     (apply append
+            (map (lambda (e) (free-variables e bound-vars))
+                 (rest sexpr))))
+    ((application? sexpr)
+     (apply append
+            (map (lambda (e) (free-variables e bound-vars))
+                 sexpr)))
+    ((symbol? sexpr)
+     (if (memq sexpr bound-vars)
+         '()
+         (list sexpr)))
     ((self-evaluating? sexpr) '())
     (else (error sexpr "free-variables: can't handle sexpr type"))))
 
@@ -162,11 +176,8 @@
  ;; --------------------------------------------------------------------
  ;; SEXPR to Syntax
 
- (define (plist->list params)
-   (cond ((symbol? params) (list params))
-         ((null? params) (list))
-         (else (pair (first params)
-                     (plist->list (rest params)) ))))
+ (define self-eval-vars
+   '(eval apply))
 
  (define (sexpr->syntax sugared-sexpr env)
 
@@ -205,7 +216,9 @@
           (let* ([formal-parameters (lambda-parameters sexpr)]
                  [relevant-ids
                   (list->vector (map (lambda (var) (lookup-variable-id var env))
-                                     (free-variables (desugar-all sexpr) formal-parameters)))]
+                                     (free-variables (desugar-all sexpr)
+                                                     (append self-eval-vars
+                                                             (plist->list formal-parameters)))))]
                  [body (sexpr->syntax (lambda-body sexpr)
                                       (extend-environment (plist->list formal-parameters)
                                                           (map compress-symbol

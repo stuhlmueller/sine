@@ -31,6 +31,9 @@
          &id
          &list
          &list-ref
+         &null?
+         &pair?
+         &symbol?
          &tagged-list?
          &vector
          &vector-ref
@@ -239,11 +242,17 @@
  (define (&cons n1 n2)
    (flat-obj->num (cons n1 n2)))
 
+ (define (&symbol? n)
+   (let ([obj (hashtable-ref obj-store n not-found)])
+     (and (not (not-found? obj))
+          (symbol? obj)
+          (not-found? (hashtable-ref obj-store obj not-found)))))
+
  (define (&vector . ns)
    (flat-obj->num (list->vector ns)))
 
  (define (&vector? n)
-   (vector? (&expand-vector n)))
+   (vector? (&expand-vector n))) ;; wrong--expand-vector already assumes vector
 
  (define (&vector-ref n i)
    (vector-ref (&expand-vector n) i))
@@ -263,6 +272,14 @@
        (cond [(= i m) #f]
              [(proc (&expand-recursive (&vector-ref n i))) i]
              [else (loop (+ i 1))]))))
+
+ (define (&null? n)
+   (let ([obj (hashtable-ref obj-store n not-found)])
+     (null? obj)))
+
+ (define (&pair? n)
+   (let ([obj (hashtable-ref obj-store n not-found)])
+     (pair? obj)))
 
  (define (&car n)
    (car (&expand-pair n)))
@@ -289,6 +306,7 @@
    (cdr (&expand-pair (&cdddr n))))
 
  (define (&tagged-list? n sym)
-   (eq? (&expand-symbol (&car n)) sym))
+   (and (&pair? n)
+        (eq? (&expand-symbol (&car n)) sym)))
 
  )

@@ -90,25 +90,52 @@
  ;; --------------------------------------------------------------------
  ;; Apply
 
+ (define (apply? &proc)
+   (and (&symbol? &proc)
+        (eq? (&expand-symbol &proc) 'apply)))
+
  (define (apply-dispatch-fn procedure)
    (cond [(deterministic-primitive-procedure? procedure) apply-deterministic-primitive-procedure]
          [(stochastic-primitive-procedure? procedure) apply-stochastic-primitive-procedure]
          [(compound-procedure? procedure) apply-compound-procedure]
+         [(apply? procedure) apply-apply]
          [else (begin
-                 (pe "got: " (&expand-recursive procedure) "\n")
+                 (pe "got: " procedure "\n"
+                     "expanded: " (&expand-recursive procedure) "\n")
                  (error procedure "apply: unknown procedure type"))]))
 
  (define (apply procedure arguments recur source)
    (let ([dispatch-fn (apply-dispatch-fn procedure)])
      (dispatch-fn procedure arguments recur source)))
 
+ (define (bindings params vals)
+   (cond [(null? params) (pair '() '())]
+         [(symbol? params) (pair (list params)
+                                 (if (symbol? vals)
+                                     (list vals)
+                                     (list (compress-list vals))))]
+         [else (if (null? vals)
+                   (error (pair params vals)
+                          "bindings: not enough arguments!")
+                   (let ([remainder (bindings (rest params) (rest vals))])
+                     (pair (pair (first params) (first remainder))
+                           (pair (first vals) (rest remainder)))))]))
+
  (define (apply-compound-procedure proc args recur source)
-   (eval (procedure-body proc)
-         (extend-environment (procedure-parameters proc)
-                             args
-                             (procedure-environment proc))
-         recur
-         source))
+   (let* ([binds (bindings (procedure-parameters proc) args)]
+          [binding-vars (first binds)]
+          [binding-vals (rest binds)])
+     (eval (procedure-body proc)
+           (extend-environment binding-vars
+                               binding-vals
+                               (procedure-environment proc))
+           recur
+           source)))
+
+ (define (apply-apply proc args recur source)
+   (apply (car args)
+          (&expand-list (cadr args))
+          recur source))
 
 
  ;; --------------------------------------------------------------------
