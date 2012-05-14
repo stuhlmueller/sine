@@ -21,5 +21,21 @@
                     x)))
        (list (blubb 4) (z (f x)) y))))
 
+(define test-prog-recursion
+  '(begin
+     (define (Y f)
+       (let ([g (lambda (g)
+                  (f (lambda args
+                       (apply (g g) args))))])
+         (g g)))
+     (define fac
+       (Y
+        (lambda (f)
+          (lambda (n)
+            (if (= n 1)
+                n
+                (* n (f (- n 1))))))))
+     (fac 30)))
+
 (for-each pretty-print
           (repeat 10 (lambda () (sicp-interpreter test-prog-norecursion))))
