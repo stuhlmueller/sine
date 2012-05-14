@@ -2,6 +2,7 @@
 
 (import (rnrs)
         (scheme-tools)
+        (sine desugar-Y)
         (sine interpreter))
 
 (define test-prog-norecursion
@@ -21,7 +22,7 @@
                     x)))
        (list (blubb 4) (z (f x)) y))))
 
-(define test-prog-recursion
+(define test-prog-recursion-Y
   '(begin
      (define fac
        (Y
@@ -30,6 +31,15 @@
             (if (= n 1)
                 n
                 (* n (f (- n 1))))))))
+     (fac 30)))
+
+(define test-prog-recursion
+  '(begin
+     (define fac
+       (lambda (n)
+         (if (= n 1)
+             n
+             (* n (fac (- n 1))))))
      (fac 30)))
 
 (for-each pretty-print

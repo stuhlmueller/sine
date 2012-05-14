@@ -29,7 +29,9 @@
  (import (rnrs)
          (scheme-tools srfi-compat :1)
          (only (scheme-tools) tagged-list? rest pair pretty-print pe)
+         (sine sexpr)
          (sine desugar)
+         (sine desugar-Y)
          (sine value-number)
          (sine env-flat))
 
@@ -99,146 +101,71 @@
 
 
  ;; --------------------------------------------------------------------
- ;; SEXPRs
-
- (define (self-evaluating? exp)
-   (cond ((boolean? exp) #t)
-         ((number? exp) #t)
-         ((string? exp) #t)
-         ((char? exp) #t)
-         ((equal? exp '()) #t)
-         ((eq? exp 'apply) #t)
-         ;; ((eq? exp 'eval) #t)
-         ;; ((eq? exp 'mem) #t)
-         ;; ((eq? exp 'make-xrp) #t)
-         (else #f)))
-
- (define (quoted? exp)
-   (tagged-list? exp 'quote))
-
- (define (variable? exp) (symbol? exp))
-
- (define (begin? expr)  (tagged-list? expr 'begin))
-
- (define (lambda? exp) (tagged-list? exp 'lambda))
-
- (define (make-lambda parameters body)
-   (cons 'lambda (cons parameters body)))
-
- (define (lambda-parameters exp) (cadr exp))
-
- (define (lambda-body exp) (caddr exp))
-
- (define (if? exp) (tagged-list? exp 'if))
-
- (define (get-env? exp)
-   (tagged-list? exp 'get-current-environment))
-
- (define (application? exp) (pair? exp))
-
- (define (top-level? expr) (tagged-list? expr 'top-level))
-
- (define top-level-sequence rest)
-
- (define (plist->list params)
-   (cond ((symbol? params) (list params))
-         ((null? params) '())
-         (else (pair (first params)
-                     (plist->list (rest params))))))
-
- (define (free-variables sexpr bound-vars)
-   (cond
-    ((begin? sexpr)
-     (apply append
-            (map (lambda (e) (free-variables e bound-vars))
-                 (rest sexpr))))
-    ((quoted? sexpr) '())
-    ((lambda? sexpr)
-     (free-variables (lambda-body sexpr)
-                     (append (plist->list (lambda-parameters sexpr))
-                             bound-vars)))
-    ((if? sexpr)
-     (apply append
-            (map (lambda (e) (free-variables e bound-vars))
-                 (rest sexpr))))
-    ((application? sexpr)
-     (apply append
-            (map (lambda (e) (free-variables e bound-vars))
-                 sexpr)))
-    ((symbol? sexpr)
-     (if (memq sexpr bound-vars)
-         '()
-         (list sexpr)))
-    ((self-evaluating? sexpr) '())
-    (else (error sexpr "free-variables: can't handle sexpr type"))))
-
-
- ;; --------------------------------------------------------------------
  ;; SEXPR to Syntax
-
- (define self-eval-vars
-   '(eval apply))
 
  (define (sexpr->syntax sugared-sexpr env)
 
-   (with-exception-handler
+   (let loop ([sugared-sexpr (desugar-all-Y sugared-sexpr)]
+              [env env])
 
-    (lambda (exn)
-      (begin (display "\nSyntax error: ")
-             (write sugared-sexpr)
-             (newline)
-             (if (string? exn)
-                 (error exn "Syntax error")
-                 (raise-continuable exn) )))
+     (with-exception-handler
 
-    (lambda ()
-      (let ((sexpr (desugar sugared-sexpr))
-            (recurse (lambda (subexpr) (sexpr->syntax subexpr env)) ))
-        (cond
+      (lambda (exn)
+        (begin (display "\nSyntax error: ")
+               (write sugared-sexpr)
+               (newline)
+               (if (string? exn)
+                   (error exn "Syntax error")
+                   (raise-continuable exn) )))
 
-         [(self-evaluating? sexpr)
-          (make-syntax 'self-evaluating
-                       sugared-sexpr
-                       (compress-recursive sexpr))]
+      (lambda ()
+        (let ((sexpr (desugar sugared-sexpr))
+              (recurse (lambda (subexpr) (loop subexpr env)) ))
+          (cond
 
-         [(variable? sexpr)
-          (let ((lexical-address (lookup-variable-id sexpr env)))
-            (make-syntax 'variable
+           [(self-evaluating? sexpr)
+            (make-syntax 'self-evaluating
                          sugared-sexpr
-                         (compress-recursive lexical-address)))]
+                         (compress-recursive sexpr))]
 
-         [(quoted? sexpr)
-          (make-syntax 'quoted
-                       sugared-sexpr
-                       (compress-recursive (cadr sexpr)))]
+           [(variable? sexpr)
+            (let ((lexical-address (lookup-variable-id sexpr env)))
+              (make-syntax 'variable
+                           sugared-sexpr
+                           (compress-recursive lexical-address)))]
 
-         [(lambda? sexpr)
-          (let* ([formal-parameters (lambda-parameters sexpr)]
-                 [relevant-ids
-                  (list->vector (map (lambda (var) (lookup-variable-id var env))
-                                     (free-variables (desugar-all sexpr)
-                                                     (append self-eval-vars
-                                                             (plist->list formal-parameters)))))]
-                 [body (sexpr->syntax (lambda-body sexpr)
-                                      (extend-environment (plist->list formal-parameters)
-                                                          (map compress-symbol
-                                                               (plist->list formal-parameters))
-                                                          (restrict-environment relevant-ids env)))])
-            (make-syntax 'lambda
+           [(quoted? sexpr)
+            (make-syntax 'quoted
                          sugared-sexpr
-                         (compress-list (list (compress-recursive formal-parameters) body))
-                         relevant-ids))]
+                         (compress-recursive (cadr sexpr)))]
 
-         [(if? sexpr)
-          (make-syntax 'if
-                       sugared-sexpr
-                       (compress-list (map recurse (rest sexpr))))]
+           [(lambda? sexpr)
+            (let* ([formal-parameters (lambda-parameters sexpr)]
+                   [relevant-ids
+                    (list->vector (map (lambda (var) (lookup-variable-id var env))
+                                       (free-variables (desugar-all sexpr)
+                                                       (append self-eval-vars
+                                                               (plist->list formal-parameters)))))]
+                   [body (loop (lambda-body sexpr)
+                               (extend-environment (plist->list formal-parameters)
+                                                   (map compress-symbol
+                                                        (plist->list formal-parameters))
+                                                   (restrict-environment relevant-ids env)))])
+              (make-syntax 'lambda
+                           sugared-sexpr
+                           (compress-list (list (compress-recursive formal-parameters) body))
+                           relevant-ids))]
 
-         [(application? sexpr)
-          (make-syntax 'application
-                       sugared-sexpr
-                       (compress-list (map recurse sexpr)))]
+           [(if? sexpr)
+            (make-syntax 'if
+                         sugared-sexpr
+                         (compress-list (map recurse (rest sexpr))))]
 
-         [else (error "Unknown expression type:" sexpr)] )))))
+           [(application? sexpr)
+            (make-syntax 'application
+                         sugared-sexpr
+                         (compress-list (map recurse sexpr)))]
+
+           [else (error "Unknown expression type:" sexpr)] ))))))
 
  )
