@@ -2,8 +2,9 @@
 
 (import (rnrs)
         (scheme-tools)
-        (sine desugar-Y)
-        (sine interpreter))
+        (scheme-tools srfi-compat :1)
+        (sine interpreter)
+        (scheme-tools profile))
 
 (define test-prog-norecursion
   '(begin
@@ -42,5 +43,20 @@
              (* n (fac (- n 1))))))
      (fac 30)))
 
-(for-each pretty-print
-          (repeat 10 (lambda () (sicp-interpreter test-prog-recursion))))
+(define (make-list-test n)
+  `(begin
+     (define make-list
+       (lambda (n)
+         (if (= n 0)
+             '()
+             (cons 5 (make-list (- n 1))))))
+     (let ([L (make-list ,n)])
+       'done)))
+
+(define (profile-list-test)
+  (pe "\"n\", \"time\"\n")
+  (for-each (lambda (n)
+              (pe n ", " (get-runtime (lambda () (sicp-interpreter (make-list-test n)))) "\n"))
+            (map (lambda (x) (* x 1000)) '(1 2 3 4))))
+
+(profile-list-test)
