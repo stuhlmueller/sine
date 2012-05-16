@@ -25,7 +25,7 @@
  ;; Env is a vector of (name . val) pairs.
  ;; In extend-environment, vals is a list of compressed &val's
 
- (define the-empty-environment (&vector))
+ (define (the-empty-environment) (&vector))
 
  (define (extend-environment vars vals &base-env)
    (&vector-append (apply &vector

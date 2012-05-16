@@ -4,6 +4,7 @@
         (scheme-tools)
         (scheme-tools srfi-compat :1)
         (sine interpreter)
+        (sine value-number)
         (scheme-tools profile))
 
 (define test-prog-norecursion
@@ -54,9 +55,15 @@
        'done)))
 
 (define (profile-list-test)
-  (pe "\"n\", \"time\"\n")
+  (pe "\"n\", \"time\", \"obj.store\", \"number.store\", \n")
   (for-each (lambda (n)
-              (pe n ", " (get-runtime (lambda () (sicp-interpreter (make-list-test n)))) "\n"))
+              (parameterize
+               ([obj-store (make-obj-store)]
+                [number-store (make-number-store)])
+               (let ([runtime (get-runtime (lambda () (sicp-interpreter (make-list-test n))))]
+                     [obj-store-size (hashtable-size (obj-store))]
+                     [number-store-size (hashtable-size (number-store))])
+                 (pe n ", " runtime ", " obj-store-size ", " number-store-size "\n"))))
             (map (lambda (x) (* x 1000)) '(1 2 3 4))))
 
 (profile-list-test)

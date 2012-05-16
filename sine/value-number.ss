@@ -50,13 +50,17 @@
          compress-symbol
          compress-vector
          compress-procedure
-         reset-stores!)
+         make-number-store
+         number-store
+         make-obj-store
+         obj-store)
 
  (import (except (rnrs) bitwise-rotate-bit-field)
          (only (sine bitwise) bitwise-rotate-bit-field)
          (only (scheme-tools srfi-compat :43) vector-append)
          (sine hashtable)
          (only (scheme-tools)
+               make-parameter
                symbol-maker
                prefixed-symbol?
                pretty-print
@@ -72,13 +76,15 @@
 
  (define (not-found? obj) (eq? obj not-found))
 
- (define number-store (make-hashtable flat-hash flat-equal?))
+ (define (make-number-store)
+   (make-hashtable flat-hash flat-equal?))
 
- (define obj-store (make-eq-hashtable))
+ (define (make-obj-store)
+   (make-eq-hashtable))
 
- (define (reset-stores!)
-   (set! number-store (make-hashtable flat-hash flat-equal?))
-   (set! obj-store (make-eq-hashtable)))
+ (define number-store (make-parameter (make-number-store)))
+
+ (define obj-store (make-parameter (make-obj-store)))
 
  (define smoosh
    (let ((garbler (floor (* 9/13 (greatest-fixnum))))
@@ -121,11 +127,11 @@
          [else #f]))
 
  (define (flat-obj->num flat-obj)
-   (hashtable-ref/default number-store
+   (hashtable-ref/default (number-store)
                           flat-obj
                           (lambda ()
                             (let ([id (readable-gensym)])
-                              (hashtable-set! obj-store id flat-obj)
+                              (hashtable-set! (obj-store) id flat-obj)
                               id))))
 
  (define (&value-number? obj)
@@ -154,11 +160,11 @@
  (define compress-boolean (make-typed-compressor boolean?))
 
  (define (compress-procedure proc name)
-   (hashtable-ref/default number-store
+   (hashtable-ref/default (number-store)
                           proc
                           (lambda ()
                             (let ([id (sym-append '&proc name)])
-                              (hashtable-set! obj-store id proc)
+                              (hashtable-set! (obj-store) id proc)
                               id))))
 
  (define (compress-list ns)
@@ -184,7 +190,7 @@
 
  (define (&expand-step n)
    (assert (&value-number? n))
-   (hashtable-ref obj-store n not-found))
+   (hashtable-ref (obj-store) n not-found))
 
  (define (make-typed-expander is-type?)
    (lambda (n)
@@ -212,13 +218,13 @@
  (define &expand-procedure (make-typed-expander procedure?))
 
  (define (&expand-list n)
-   (let ([obj (hashtable-ref obj-store n not-found)])
+   (let ([obj (hashtable-ref (obj-store) n not-found)])
      (cond [(pair? obj) (cons (car obj) (&expand-list (cdr obj)))]
            [(null? obj) '()]
            [else (error "&expand-list: number refers to non-list object")])))
 
  (define (&expand-recursive n)
-   (let ([obj (hashtable-ref obj-store n not-found)])
+   (let ([obj (hashtable-ref (obj-store) n not-found)])
      (if (not-found? obj)
          n
          (cond [(symbol? obj) (&expand-recursive obj)]
@@ -248,10 +254,10 @@
    (flat-obj->num (cons n1 n2)))
 
  (define (&symbol? n)
-   (let ([obj (hashtable-ref obj-store n not-found)])
+   (let ([obj (hashtable-ref (obj-store) n not-found)])
      (and (not (not-found? obj))
           (symbol? obj)
-          (not-found? (hashtable-ref obj-store obj not-found)))))
+          (not-found? (hashtable-ref (obj-store) obj not-found)))))
 
  (define (&vector . ns)
    (flat-obj->num (list->vector ns)))
@@ -279,11 +285,11 @@
              [else (loop (+ i 1))]))))
 
  (define (&null? n)
-   (let ([obj (hashtable-ref obj-store n not-found)])
+   (let ([obj (hashtable-ref (obj-store) n not-found)])
      (null? obj)))
 
  (define (&pair? n)
-   (let ([obj (hashtable-ref obj-store n not-found)])
+   (let ([obj (hashtable-ref (obj-store) n not-found)])
      (pair? obj)))
 
  (define (&car n)

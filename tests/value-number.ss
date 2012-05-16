@@ -26,8 +26,10 @@
 (define (main)
   (pe "n, time\n")
   (for-each (lambda (n) (begin
-                     (reset-stores!)
-                     (pe n ", " (get-runtime (lambda () (profile n))) "\n")))
+                     (parameterize
+                      ([obj-store (make-obj-store)]
+                       [number-store (make-number-store)])
+                      (pe n ", " (get-runtime (lambda () (profile n))) "\n"))))
             (map (lambda (x) (* x 20000)) '(1 2 3 4 5 6 7 8 9 10))))
 
 (main)

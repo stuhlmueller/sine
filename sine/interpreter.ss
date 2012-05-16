@@ -216,7 +216,7 @@
  (define (setup-environment)
    (extend-environment (all-primitive-names)
                        (all-primitive-objects)
-                       the-empty-environment))
+                       (the-empty-environment)))
 
  (define default-source
    (lambda (p) (< (random-real) p)))
