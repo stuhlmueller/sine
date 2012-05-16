@@ -49,7 +49,8 @@
          compress-recursive
          compress-symbol
          compress-vector
-         compress-procedure)
+         compress-procedure
+         reset-stores!)
 
  (import (except (rnrs) bitwise-rotate-bit-field)
          (only (sine bitwise) bitwise-rotate-bit-field)
@@ -74,6 +75,10 @@
  (define number-store (make-hashtable flat-hash flat-equal?))
 
  (define obj-store (make-eq-hashtable))
+
+ (define (reset-stores!)
+   (set! number-store (make-hashtable flat-hash flat-equal?))
+   (set! obj-store (make-eq-hashtable)))
 
  (define smoosh
    (let ((garbler (floor (* 9/13 (greatest-fixnum))))
