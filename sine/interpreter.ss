@@ -183,7 +183,7 @@
  (define (all-primitive-objects)
    (append (primitive-procedure-objects deterministic-primitive-procedures 'primitive)
            (primitive-procedure-objects stochastic-primitive-procedures 'rand)
-           (map (compose compress-recursive cdr) primitive-constants)))
+           (map second primitive-constants)))
 
 
  ;; --------------------------------------------------------------------
@@ -193,9 +193,8 @@
    (&tagged-list? &proc 'primitive))
 
  (define (apply-deterministic-primitive-procedure &proc args recur source)
-   (compress-recursive
-    (scheme-apply (primitive-implementation &proc)
-                  (map &expand-recursive args))))
+   (scheme-apply (primitive-implementation &proc)
+                 args))
 
 
  ;; --------------------------------------------------------------------
@@ -205,9 +204,8 @@
    (&tagged-list? &proc 'rand))
 
  (define (apply-stochastic-primitive-procedure &proc args recur source)
-   (compress-recursive
-    (scheme-apply (primitive-implementation &proc)
-                  (cons source (map &expand-recursive args)))))
+   (scheme-apply (primitive-implementation &proc)
+                 (cons source args)))
 
 
  ;; --------------------------------------------------------------------

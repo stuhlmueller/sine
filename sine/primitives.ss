@@ -10,34 +10,35 @@
 
  (import (rnrs)
          (scheme-tools)
+         (sine value-number)
          (scheme-tools srfi-compat :1))
 
  (define deterministic-primitive-procedures
-   (list (list 'car car)
-         (list 'cdr cdr)
-         (list 'cons cons)
-         (list 'null? null?)
-         (list 'list list)
-         (list 'not not)
-         (list 'or (lambda l (any (lambda (x) x) l)))
-         (list 'and (lambda l (every (lambda (x) x) l)))
-         (list '= =)
-         (list '+ +)
-         (list '- -)
-         (list '* *)
-         (list '/ /)))
+   (list (list 'car &car)
+         (list 'cdr &cdr)
+         (list 'cons &cons)
+         (list 'null? &null?)
+         (list 'list &list)
+         (list 'not &not)
+         (list 'or &or)
+         (list 'and &and)
+         (list '= &=)
+         (list '+ &+)
+         (list '- &-)
+         (list '* &*)
+         (list '/ &/)))
 
- (define (flip source . ?p)
-   (let ([p (if (null? ?p) .5 (car ?p))])
+ (define (&flip source . ?p)
+   (let ([p (if (null? ?p) .5 (&expand-number (car ?p)))])
      (let ([bit (source p)])
-       bit)))
+       (compress-boolean bit))))
 
  (define stochastic-primitive-procedures
-   (list (list 'flip flip)))
+   (list (list 'flip &flip)))
 
  (define primitive-constants
-   (list (list 'true #t)
-         (list 'false #f)))
+   (list (list 'true (compress-boolean #t))
+         (list 'false (compress-boolean #f))))
 
  )
 

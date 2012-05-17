@@ -54,6 +54,15 @@
      (let ([L (make-list ,n)])
        'done)))
 
+(define (make-simple-recursion-test n)
+  `(begin
+     (define foo
+       (lambda (n)
+         (if (= n 0)
+             1
+             (foo (- n 1)))))
+     (foo ,n)))
+
 (define (profile-list-test)
   (pe "\"n\", \"time\", \"obj.store\", \"number.store\", \n")
   (for-each (lambda (n)
@@ -63,7 +72,9 @@
                (let ([runtime (get-runtime (lambda () (sicp-interpreter (make-list-test n))))]
                      [obj-store-size (hashtable-size (obj-store))]
                      [number-store-size (hashtable-size (number-store))])
-                 (pe n ", " runtime ", " obj-store-size ", " number-store-size "\n"))))
-            (map (lambda (x) (* x 1000)) '(1 2 3 4))))
+                 (pe n ", " runtime ", " obj-store-size ", " number-store-size "\n")
+
+                 )))
+            (map (lambda (x) (* x 8000)) '(1 2 3 4 5))))
 
 (profile-list-test)
