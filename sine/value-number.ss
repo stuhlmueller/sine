@@ -9,7 +9,13 @@
 
  (sine value-number)
 
- (export &cadddr
+ (export &*
+         &+
+         &-
+         &/
+         &=
+         &and
+         &cadddr
          &caddr
          &cadr
          &car
@@ -24,41 +30,45 @@
          &expand-null
          &expand-number
          &expand-pair
+         &expand-procedure
          &expand-recursive
          &expand-symbol
          &expand-vector
-         &expand-procedure
          &id
          &list
          &list-ref
+         &not
          &null?
+         &or
          &pair?
          &symbol?
          &tagged-list?
          &vector
-         &vector-ref
          &vector-append
-         &vector-length
          &vector-index
+         &vector-length
+         &vector-ref
          &vector?
          compress-boolean
          compress-list
          compress-null
          compress-number
          compress-pair
+         compress-procedure
          compress-recursive
          compress-symbol
          compress-vector
-         compress-procedure
          make-number-store
-         number-store
          make-obj-store
+         number-store
          obj-store)
 
  (import (except (rnrs) bitwise-rotate-bit-field)
          (only (sine bitwise) bitwise-rotate-bit-field)
          (only (scheme-tools srfi-compat :43) vector-append)
+         (scheme-tools srfi-compat :1)
          (sine hashtable)
+         (scheme-tools debug)
          (only (scheme-tools)
                make-parameter
                symbol-maker
@@ -86,13 +96,15 @@
 
  (define obj-store (make-parameter (make-obj-store)))
 
- (define smoosh
-   (let ((garbler (floor (* 9/13 (greatest-fixnum))))
-         (width (- (fixnum-width) 1)))
-     (lambda (left right)
-       (bitwise-xor left
-                    (bitwise-rotate-bit-field right 0 width (- width 5))
-                    garbler))))
+ ;; (define smoosh
+ ;;   (let ((garbler (floor (* 9/13 (greatest-fixnum))))
+ ;;         (width (- (fixnum-width) 1)))
+ ;;     (lambda (left right)
+ ;;       (bitwise-xor left
+ ;;                    (bitwise-rotate-bit-field right 0 width (- width 5))
+ ;;                    garbler))))
+
+ (define smoosh +)
 
  (define (flat-vector-hash vec)
    (let loop ([n (vector-length vec)])
@@ -235,6 +247,30 @@
 
  ;; --------------------------------------------------------------------
  ;; Operations on compressed data structures:
+
+ (define (&not x)
+   (compress-boolean (not (&expand-boolean x))))
+
+ (define (&or . args)
+   (compress-boolean (any (lambda (x) x) (map &expand-boolean args))))
+
+ (define (&and . args)
+   (compress-boolean (every (lambda (x) x) (map &expand-boolean args))))
+
+ (define (&= a b)
+   (compress-boolean (= (&expand-number a) (&expand-number b))))
+
+ (define (&+ a b)
+   (compress-number (+ (&expand-number a) (&expand-number b))))
+
+ (define (&- a b)
+   (compress-number (- (&expand-number a) (&expand-number b))))
+
+ (define (&* a b)
+   (compress-number (* (&expand-number a) (&expand-number b))))
+
+ (define (&/ a b)
+   (compress-number (/ (&expand-number a) (&expand-number b))))
 
  (define (&eq? n1 n2)
    (eq? n1 n2))
