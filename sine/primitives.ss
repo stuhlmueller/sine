@@ -30,8 +30,8 @@
 
  (define (&flip source . ?p)
    (let ([p (if (null? ?p) .5 (&expand-number (car ?p)))])
-     (let ([bit (source p)])
-       (compress-boolean bit))))
+     (let ([&bit (source p)])
+       &bit)))
 
  (define stochastic-primitive-procedures
    (list (list 'flip &flip)))
