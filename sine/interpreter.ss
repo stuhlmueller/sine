@@ -224,8 +224,7 @@
                        (eval syntax env recur source)))])
      recur))
 
- (define (interpreter expr recur source)
-   ;; FIXME: don't need source argument
+ (define (interpreter expr recur)
    (let ([env (setup-environment)])
      (recur (sexpr->syntax expr env) env)))
 
