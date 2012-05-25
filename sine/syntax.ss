@@ -12,6 +12,7 @@
          syntax:lambda?
          syntax?
          syntax->&free-vars
+         syntax->original-expr
          lambda-syntax->lambda-parameters
          lambda-syntax->lambda-body
          syntax:if?
@@ -45,7 +46,9 @@
                             &sub
                             (if (null? free-vars)
                                 (compress-boolean #f)
-                                (compress-recursive (car free-vars))))))
+                                (compress-recursive (car free-vars)))
+                            (compress-recursive original-expr) ;; remove eventually
+                            )))
 
  (define (syntax? s)
    (and (&vector? s)
@@ -59,6 +62,9 @@
 
  (define (syntax->&free-vars s)
    (&vector-ref s 3))
+
+ (define (syntax->original-expr s)
+   (&expand-recursive (&vector-ref s 4)))
 
  (define (syntax:is-type sym) (lambda (sobj) (eq? sym (syntax->type sobj))))
  (define syntax:self-evaluating? (syntax:is-type 'self-evaluating))
