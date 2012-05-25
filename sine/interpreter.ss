@@ -126,12 +126,10 @@
    (let* ([binds (bindings (procedure-parameters proc) args)]
           [binding-vars (first binds)]
           [binding-vals (rest binds)])
-     (eval (procedure-body proc)
-           (extend-environment binding-vars
-                               binding-vals
-                               (procedure-environment proc))
-           recur
-           source)))
+     (recur (procedure-body proc)
+            (extend-environment binding-vars
+                                binding-vals
+                                (procedure-environment proc)))))
 
  (define (apply-apply proc args recur source)
    (apply (car args)
@@ -227,8 +225,9 @@
      recur))
 
  (define (interpreter expr recur source)
+   ;; FIXME: don't need source argument
    (let ([env (setup-environment)])
-     (eval (sexpr->syntax expr env) env recur source)))
+     (recur (sexpr->syntax expr env) env)))
 
  (define (sicp-interpreter expr)
    (let ([env (setup-environment)]
