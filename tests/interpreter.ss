@@ -20,8 +20,8 @@
      (begin
        (define f
          (lambda (x) (if (flip)
-                    (* x x)
-                    x)))
+                         (* x x)
+                         x)))
        (list (blubb 4) (z (f x)) y))))
 
 (define test-prog-recursion-Y
