@@ -39,6 +39,7 @@
          &list-ref
          &not
          &null?
+         &null
          &or
          &pair?
          &symbol?
@@ -72,6 +73,7 @@
          (only (scheme-tools)
                make-parameter
                symbol-maker
+               inexact->exact
                prefixed-symbol?
                pretty-print
                sym-append
@@ -122,13 +124,14 @@
           [(boolean? obj) (if obj 51991 77597)]
           [(pair? obj) (smoosh (symbol-hash (car obj)) (symbol-hash (cdr obj)))]
           [(symbol? obj) (symbol-hash obj)]
+          [(real? obj) (inexact->exact (+ (numerator obj) (denominator obj)))]
           [(number? obj) obj]
           [(vector? obj) (flat-vector-hash obj)]
           [(procedure? obj) 1748131]
           [else (error obj "cannot hash obj type")])))
 
  (define (flat-equal? obj1 obj2)
-   (cond [(eq? obj1 obj2) #t]
+   (cond [(eqv? obj1 obj2) #t]
          [(and (pair? obj1) (pair? obj2))
           (and (eq? (car obj1) (car obj2))
                (eq? (cdr obj1) (cdr obj2)))]
@@ -355,5 +358,7 @@
  (define (&tagged-list? n sym)
    (and (&pair? n)
         (eq? (&expand-symbol (&car n)) sym)))
+
+ (define &null (compress-null '()))
 
  )
