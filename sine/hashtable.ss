@@ -5,6 +5,8 @@
  (sine hashtable)
 
  (export hashtable-ref/default
+         hashtable-keys
+         hashtable-values
          pretty-print-hashtable)
 
  (import (rnrs)
@@ -19,6 +21,10 @@
            (hashtable-set! table key v*)
            v*)
          v)))
+
+ (define (hashtable-values ht)
+   (let-values ([(keys vals) (hashtable-entries ht)])
+     vals))
 
  (define (pretty-print-hashtable ht)
    (let-values ([(keys vals) (hashtable-entries ht)])
