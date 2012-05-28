@@ -77,34 +77,35 @@
     (multinomial (vector->list vals)
                  (vector->list ps)))) ;; multinomial renormalizes
 
-(define (get-marginal-p marginal val)
+(define (get-marginal-prob marginal val)
   (hashtable-ref/default marginal val (lambda () 0.0)))
 
-(define (set-marginal-p! marginal val p)
+(define (set-marginal-prob! marginal val p)
   (hashtable-set! marginal val p))
 
 (define (marginal-mass marginal)
   (vector-sum (marginal-ps marginal)))
 
-(define (marginal-diff local-marginal global-marginal)
-  (cond [(marginal-unknown? global-marginal) (make-empty-marginal)] ;; could avoid creation
+(define (get-diff-marginal local-marginal global-marginal)
+  (cond [(marginal-unknown? global-marginal)
+         (begin
+           (assert (marginal-unknown? local-marginal))
+           (make-empty-marginal))] ;; could avoid creation
         [(marginal-unknown? local-marginal) global-marginal]
         [else (map-over-marginal (lambda (val global-p)
-                                   (let ([local-p (get-marginal-p local-marginal val)])
+                                   (let ([local-p (get-marginal-prob local-marginal val)])
                                      (- global-p local-p)))
                                  global-marginal)]))
 
 (define (reweight-marginal marginal weights)
   (make-marginal (marginal-vals marginal)
-                 (normalize-vector
-                  (vector-map *
-                              (marginal-ps marginal)
-                              weights))))
+                 (vector-map *
+                             (marginal-ps marginal)
+                             weights)))
 
 (define (print-marginal marginal id)
   (pe id ":  ")
-  (map-over-marginal-vector (lambda (v p) (pe v ", " p ";  "))
-                            marginal)
+  (show-marginal marginal)
   (pe "\n"))
 
 
@@ -133,7 +134,13 @@
         (set-global-marginal! &state
                               (make-marginal (vector v)
                                              (vector p)))
-        (set-marginal-p! marginal v p)))) ;; mutation!
+        (let ([new-p (+ (get-marginal-prob marginal v) p)])
+          (assert (<= new-p 1.0))
+          (set-marginal-prob! marginal
+                              v
+                              new-p)
+          (assert* (<= (marginal-mass marginal) 1.0)
+                   (lambda () (show-marginal marginal))))))) ;; mutation!
 
 
 ;; Local marginals
@@ -151,39 +158,67 @@
                   (&cons &state &slot)
                   marginal))
 
+(define (update-local-marginal-from-global! parent-recur &slot recur)
+  (set-local-marginal! (recur-state parent-recur)
+                       &slot
+                       (get-global-marginal (recur-state recur))))
 
-;; Visited probability mass (local)
+(define (increment-local-marginal! parent-recur &slot v p)
+  (let ([marginal (get-local-marginal (recur-state parent-recur) &slot)])
+    (if (marginal-unknown? marginal)
+        (set-local-marginal! (recur-state parent-recur)
+                             (make-marginal (vector v)
+                                            (vector p)))
+        (let ([new-p (+ (get-marginal-prob marginal v) p)])
+          (assert (<= new-p 1.0))
+          (set-marginal-prob! marginal
+                              v
+                              new-p)
+          (assert* (<= (marginal-mass marginal) 1.0)
+                   (lambda () (show-marginal marginal)))))))
 
-(define visited-mass-table
+
+;; Explored probability mass (local)
+
+(define explored-mass-table
   (make-eq-hashtable))
 
-(define (get-visited-mass &state &slot)
-  (hashtable-ref visited-mass-table
+(define (get-explored-mass &state &slot)
+  (hashtable-ref explored-mass-table
                  (&cons &state &slot)
                  0.0))
 
-(define (set-visited-mass! &state &slot mass)
-  (hashtable-set! visited-mass-table
+(define (set-explored-mass! &state &slot mass)
+  (hashtable-set! explored-mass-table
                   (&cons &state &slot)
                   mass))
 
-;; Improve this? (use better check than visited mass being 0)
-(define (update-visited-mass! &state &slot)
+;; Improve this? (use better check than explored mass being 0)
+(define (update-explored-mass! &state &slot)
   (when (not (&null? &slot))
         (let ([marginal (get-local-marginal &state &slot)])
-          (let ([visited-mass (vector-sum
-                               (map-over-marginal-vector
-                                (lambda (&v p) (* p (get-visited-mass &state (&cons &v &slot))))
-                                marginal))])
-            (if (= visited-mass 0.0)
-                (set-visited-mass! &state &slot (marginal-mass marginal))
-                (set-visited-mass! &state &slot visited-mass))
-            (update-visited-mass! &state (&cdr &slot))))))
+          (let ([explored-mass (vector-sum
+                                (map-over-marginal-vector
+                                 (lambda (&v p) (* p (get-explored-mass &state (&cons &v &slot))))
+                                 marginal))])
+            (if (= explored-mass 0.0)
+                (set-explored-mass! &state &slot (marginal-mass marginal))
+                (set-explored-mass! &state &slot explored-mass))
+            (update-explored-mass! &state (&cdr &slot))))))
 
+(define (get-unexplored-mass parent-recur &slot vals)
+  (vector-map (lambda (&v) (- 1.0 (get-explored-mass (recur-state parent-recur)
+                                                (&cons &v &slot))))
+              vals))
 
 
 ;; --------------------------------------------------------------------
 ;; Debug tools
+
+;; (define (marginal->string marginal)
+;;   (let-values ([(keys vals) (hashtable-entries marginal)])
+;;     (->string:n (zip (vector->list keys)
+;;                      (vector->list vals)) 80)))
 
 (define (recur->string recur)
   (if (&pair? (recur-state recur))
@@ -198,22 +233,36 @@
             (reverse (iota (length stack))))
   (pe "\n"))
 
-(define (show-state state)
+(define (show-state state parent-state &slot)
   (pe "state:\n")
-  (cond [(recur? state) (pe "  recur: " (recur->string state))]
+  (cond [(recur? state)
+         (pe "  recur: " (recur->string state) "\n"
+             "    global marg: " (marginal->string (get-global-marginal (recur-state state))) "\n"
+             "    local marg: " (marginal->string (get-local-marginal
+                                                   (recur-state parent-state) &slot)))]
         [(terminal? state) (pe "  term: " (->string:n (&expand-recursive (terminal-value state)) 80))]
         [(xrp? state) (pe "  xrp call: " (vector-map &expand-recursive (xrp-vals state)) " " (xrp-probs state))]
         [else (pe state)])
   (pe "\n"))
 
+(define (show-slot &slot)
+  (pe "slot: " (&->string:n &slot 80) "\n"))
+
 (define (&->string:n v n)
   (->string:n (&expand-recursive v) n))
+
+(define (marginal->string marginal)
+  (apply string-append
+         (vector->list
+          (map-over-marginal-vector (lambda (v p) (string-append (&->string:n v 30) ", " (->string p) ";  "))
+                                    marginal))))
+
+(define (show-marginal marginal)
+  (display (marginal->string marginal)))
 
 
 ;; --------------------------------------------------------------------
 ;; Updates
-;;
-;; Q: is it valid to enqueue updates?
 
 (define update-queue '())
 
@@ -242,67 +291,62 @@
       value)))
 
 (define (sample state stack &slot score)
-  (show-state state)
+  (show-state state (car stack) &slot)
+  (show-slot &slot)
   (show-stack stack)
   (cond [(recur? state) (sample-recur state stack &slot score)]
         [(xrp? state) (sample-xrp state stack &slot score)]
         [(terminal? state) (sample-terminal state stack &slot score)]
         [else (error state "unknown state type")]))
 
-(define (sample-xrp xrp stack &slot score)
-  (let ([parent-recur (car stack)])
-    (pe "at xrp, setting marginal for " (recur->string parent-recur) " to "
-        (vector-map &expand-recursive (xrp-vals xrp)) ", "(xrp-probs xrp) "\n\n")
-    (set-global-marginal! (recur-state parent-recur)
-                          (make-marginal (xrp-vals xrp)
-                                         (xrp-probs xrp)))
-    (sample-recur (make-recur (lambda (x) (make-terminal x))
-                              (recur-call parent-recur)
-                              (recur-state parent-recur))
-                  (cdr stack)
-                  &slot
-                  score)))
-
 (define (sample-recur recur stack &slot score)
-  (let* ([&state (recur-state recur)]
-         [local-marginal (get-local-marginal (recur-state (car stack))
-                                             &slot)]
-         [global-marginal (get-global-marginal &state)]
-         [inc-marginal (marginal-diff local-marginal global-marginal)]
-         [use-marginal (flip (marginal-mass inc-marginal))])
-
-    (let-values ([(value new-score)
-                  (if use-marginal
-                      (let* ([unvisited-masses
-                              (vector-map
-                               (lambda (&v) (- 1.0 (get-visited-mass (recur-state (car stack))
-                                                                (&cons &v &slot))))
-                               (marginal-vals inc-marginal))]
-                             [marginal (reweight-marginal inc-marginal
-                                                          (normalize-vector unvisited-masses))]
-                             [v (sample-marginal marginal)]
-                             [p (get-marginal-p inc-marginal v)]) ;; Q: what marginal to use here?
-                        (pe "sampled " (&expand-recursive v) " from marginal of "
-                            (recur->string recur) "\n\n")
-                        (values v p))
-                      (let-values ([(v p &s) (sample (reset (make-terminal (apply-recur recur)))
-                                                     (cons recur stack)
-                                                     &null
-                                                     1.0)])
-                        (pe "return " (&->string:n v 60) "\nfrom " (recur->string recur) "\n\n")
-                        (enqueue-update! 'increment-global-marginal! &state v p)
-                        (enqueue-update! 'update-visited-mass! &state &s)
-                        (values v p)))])
-
-      (enqueue-update! 'set-local-marginal!
-                       (recur-state (car stack))
-                       &slot
-                       (get-global-marginal &state))
-
+  (let* ([global-marginal (get-global-marginal (recur-state recur))]
+         [unexplored-mass (get-unexplored-mass (car stack) &slot (marginal-vals global-marginal))]
+         [reweighted-marginal (reweight-marginal global-marginal unexplored-mass)]
+         [use-marginal (flip (marginal-mass reweighted-marginal))])
+    (pe "global marginal: " (marginal->string global-marginal) "\n")
+    (pe "unexplored mass: " unexplored-mass "\n")
+    (pe "reweighted marginal: " (marginal->string reweighted-marginal) "\n")
+    (let-values
+        ([(value new-score)
+          (if use-marginal
+              (sample-recur-from-marginal recur reweighted-marginal global-marginal)
+              (sample-recur-internally recur stack &slot))])
       (sample ((recur-cont recur) value)
               stack
               (&cons value &slot)
               (* score new-score)))))
+
+(define (sample-recur-from-marginal recur reweighted-marginal original-marginal)
+  (let* ([value (sample-marginal reweighted-marginal)]
+         [prob (get-marginal-prob original-marginal value)])
+    (pe "from marginal: " (&->string:n value 60) " of " (recur->string recur) "\n\n")
+    (values value prob)))
+
+(define (sample-recur-internally recur stack &slot)
+  (let-values ([(value prob &internal-slot)
+                (sample (reset (make-terminal (apply-recur recur)))
+                        (cons recur stack)
+                        &null
+                        1.0)])
+    (pe "from internal: " (&->string:n value 60) " of " (recur->string recur) "\n\n")
+    (increment-global-marginal! (recur-state recur) value prob)
+    (increment-local-marginal! (car stack) &slot value prob)
+    (update-explored-mass! (recur-state recur) &internal-slot)
+    (values value prob)))
+
+(define (sample-xrp xrp stack &slot score)
+  (let* ([global-marginal (make-marginal (xrp-vals xrp)
+                                         (xrp-probs xrp))]
+         [unexplored-mass (get-unexplored-mass (car stack) &slot (marginal-vals global-marginal))]
+         [reweighted-marginal (reweight-marginal global-marginal unexplored-mass)]
+         [value (sample-marginal reweighted-marginal)]
+         [new-score (get-marginal-prob global-marginal value)])
+    (pe "from xrp: " (&->string:n value 60) " of " (recur->string (car stack)) "\n\n")
+    (sample ((xrp-cont xrp) value)
+            stack
+            (&cons value &slot)
+            (* score new-score))))
 
 (define (sample-terminal terminal stack &slot score)
   (values (terminal-value terminal)
@@ -315,16 +359,15 @@
 ;; Test
 
 (define (test)
-  (let ([expr (with-preamble '(list (flip) (flip)))])
+  (let ([expr (with-preamble '(flip))]) ;; '(list (not (flip)) (list (not (flip))))
     (pe "original expr:\n")
     (pretty-print expr)
     (pe "\n")
     (pe "desugared expr:\n")
     (pretty-print (desugar-all expr))
     (pe "\n")
-    (pe (sample-top (coroutine-interpreter expr))
-        "\n")
-    (pe "\nEnqueued updates:\n")
-    (show-update-queue)))
+    (let ([v (sample-top (coroutine-interpreter expr))])
+      (pe "\n\n\n")
+      v)))
 
-(test)
+(display (repeat 10 test))

@@ -170,7 +170,7 @@
 
  (define (primitive-procedure-objects procs type-symbol)
    (map (lambda (proc) (&list (compress-symbol type-symbol)
-                         (compress-procedure (cadr proc) (car proc))))
+                              (compress-procedure (cadr proc) (car proc))))
         procs))
 
  (define (all-primitive-names)
