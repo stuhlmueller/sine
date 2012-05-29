@@ -23,20 +23,46 @@
 
  (sine spn)
 
- (export build-spn)
+ (export build-spn
+         spn->edges
+         spn->nodetypes
+         spn->indicator-ids
+         spn->ref-terminal-ids
+         spn->ref-subroot-ids
+         spn->probs
+         spn->roots
+         spn->callbacks
+         spn->terminal-ids
+         spn->recur-id
+         spn->terminal-id)
 
  (import (rnrs)
          (scheme-tools srfi-compat :1)
+         (scheme-tools srfi-compat :43)
          (scheme-tools queue)
+         (scheme-tools)
          (only (scheme-tools) gensym)
          (sine coroutine-interpreter)
          (sine coroutine-id)
+         (sine value-number)
          (sine delimcc-simple-r6rs))
+
+ (define counter
+   (get-counter))
+
+ (define (readable-gensym sym)
+   (sym+num (sym-append sym '-) (counter)))
+
+
+ (define (apply-recur recur)
+   (let ([syntax+env (&expand-pair (recur-state recur))])
+     (apply (recur-call recur)
+            (list (car syntax+env)
+                  (cdr syntax+env)))))
 
  (define (make-subthunk recur)
    (lambda () (reset (make-terminal
-                      (apply (recur-call recur)
-                             (recur-state recur))))))
+                 (apply-recur recur)))))
 
  (define (make-callback source-id source-cont)
    (list 'callback source-id source-cont))
@@ -44,6 +70,21 @@
  (define callback->source-id second)
 
  (define callback->source-cont third)
+
+ (define (make-spn-bundle . args)
+   (cons 'spn args))
+
+ (define (spn->edges bundle) (list-ref bundle 2))
+ (define (spn->nodetypes bundle) (list-ref bundle 3))
+ (define (spn->indicator-ids bundle) (list-ref bundle 4))
+ (define (spn->ref-terminal-ids bundle) (list-ref bundle 5))
+ (define (spn->ref-subroot-ids bundle) (list-ref bundle 6))
+ (define (spn->probs bundle) (list-ref bundle 7))
+ (define (spn->roots bundle) (list-ref bundle 8))
+ (define (spn->callbacks bundle) (list-ref bundle 9))
+ (define (spn->terminal-ids bundle) (list-ref bundle 10))
+ (define (spn->recur-id bundle) (list-ref bundle 11))
+ (define (spn->terminal-id bundle) (list-ref bundle 12))
 
 
  (define (build-spn root-thunk)
@@ -67,7 +108,7 @@
             [spn-id (hashtable-ref spn:obj-id obj-id #f)])
        (if spn-id
            (values spn-id #f)
-           (let ([id (gensym obj-type)])
+           (let ([id (readable-gensym obj-type)])
              (hashtable-set! spn:obj-id (get-obj-state obj) id)
              (values id #t)))))
 
@@ -121,7 +162,7 @@
                      (cons to (hashtable-ref spn:edges from '()))))
 
    (define (make-spn-node! parent-id node-type)
-     (let ([node-id (gensym node-type)])
+     (let ([node-id (readable-gensym node-type)])
        (make-edge! parent-id node-id)
        (hashtable-set! spn:nodetypes node-id node-type)
        (store-root-id! node-id (get-root-id parent-id))
@@ -170,13 +211,13 @@
 
    (define (build-spn:xrp! last-id xrp)
      (let ([sum-id (make-sum-node! last-id)])
-       (for-each (lambda (value score)
-                   (let ([product-id (make-product-node! sum-id)])
-                     (make-prob-node! product-id score)
-                     (enqueue! queue
-                               (make-task product-id (lambda () ((xrp-cont xrp) value))))))
-                 (xrp-vals xrp)
-                 (xrp-probs xrp))))
+       (vector-for-each (lambda (value score)
+                          (let ([product-id (make-product-node! sum-id)])
+                            (make-prob-node! product-id score)
+                            (enqueue! queue
+                                      (make-task product-id (lambda () ((xrp-cont xrp) value))))))
+                        (xrp-vals xrp)
+                        (xrp-probs xrp))))
 
    (define (build-spn:terminal! last-id terminal)
      (let* ([root-id (get-root-id last-id)]
@@ -187,7 +228,7 @@
                       (enqueue! queue
                                 (make-task product-id
                                            (lambda () ((callback->source-cont cb)
-                                                       (terminal-value terminal)))))))]
+                                                  (terminal-value terminal)))))))]
             [term-is-new (store-terminal-id! root-id term-id)])
        (if term-is-new
            (begin
@@ -213,7 +254,17 @@
      (make-root-node! 'root)
      (enqueue! queue (make-task 'root root-thunk))
      (process-queue!)
-     spn:edges)
+     (make-spn-bundle spn:edges
+                      spn:nodetypes
+                      spn:indicator-ids
+                      spn:ref-terminal-ids
+                      spn:ref-subroot-ids
+                      spn:probs
+                      spn:roots
+                      spn:callbacks
+                      spn:terminal-ids
+                      spn:recur-id
+                      spn:terminal-id))
 
    (main))))
 
