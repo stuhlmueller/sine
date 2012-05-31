@@ -287,7 +287,7 @@
     (if (= child-mass 0.0)
         (assert (not (= (get-explored-mass &state &slot) 0.0)))
         (set-explored-mass! &state &slot child-mass))
-    (when (not (&null? &slot))
+    (when (not (&expand-boolean (&null? &slot)))
           (update-explored-mass! &state (&cdr &slot)))))
 
 (define (get-unexplored-mass parent-recur &slot vals)
