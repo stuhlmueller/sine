@@ -11,12 +11,19 @@
  (import (rnrs)
          (sine shift-reset-enumerator)
          (sine interpreter)
+         (sine value-number)
+         (sine preamble)
          (scheme-tools))
 
- (define (enum-interpreter expr)
-   (enumerate (lambda (source)
-                (interpreter expr
-                             (make-default-recur source)
-                             source))))
+ (define/kw (enum-interpreter expr [limit :default 10000])
+   (let ([marginals
+          (enumerate (lambda (source)
+                       (interpreter (with-preamble expr)
+                                    (make-default-recur source)))
+                     'limit limit)])
+     (map (lambda (binding)
+            (pair (&expand-recursive (car binding))
+                  (cdr binding)))
+          marginals)))
 
  )
