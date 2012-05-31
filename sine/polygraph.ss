@@ -19,6 +19,7 @@
          (scheme-tools graph utils)
          (scheme-tools srfi-compat :1)
          (scheme-tools queue)
+         (sine value-number)
          (sine polycommon)
          (sine coroutine-interpreter)
          (sine coroutine-id)
@@ -43,14 +44,14 @@
              (loop))))))
 
  (define (build-graph:xrp! graph queue task xrp)
-   (for-each (lambda (value score)
-               (enqueue! queue
-                         (make-task (lambda () ((xrp-cont xrp) value))
-                                    (task->last-id task)
-                                    (plus/symbolic (task->link-weight task) score)
-                                    (cons value (task->link-label task)))))
-             (xrp-vals xrp)
-             (xrp-probs xrp)))
+   (vector-for-each (lambda (value score)
+                      (enqueue! queue
+                                (make-task (lambda () ((xrp-cont xrp) value))
+                                           (task->last-id task)
+                                           (plus/symbolic (task->link-weight task) score)
+                                           (cons value (task->link-label task)))))
+                    (xrp-vals xrp)
+                    (xrp-probs xrp)))
 
  (define (build-graph:terminal! graph queue task terminal)
    (let ([terminal-id (terminal-id terminal)])
@@ -64,10 +65,15 @@
                                             (enqueue! queue (terminal->task terminal-id)))
                                           (graph:ancestor-callbacks graph (task->last-id task))))))))
 
+ (define (apply-recur recur)
+   (let ([syntax+env (&expand-pair (recur-state recur))])
+     (apply (recur-call recur)
+            (list (car syntax+env)
+                  (cdr syntax+env)))))
+
  (define (build-graph:recur! graph queue task recur)
    (let* ([subthunk (lambda () (reset (make-terminal
-                                  (apply (recur-call recur)
-                                         (recur-state recur)))))]
+                                  (apply-recur recur))))]
           [subroot-id (recur-id recur)]
           [subroot-is-new (graph:add/retrieve! graph subroot-id)]
           [seen? (make-watcher)]
