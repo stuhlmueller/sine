@@ -7,12 +7,14 @@
  (export hashtable->alist
          hashtable-ref/default
          hashtable-ref/nodef
+         hashtable-for-each
          hashtable-keys
          hashtable-values
          pretty-print-hashtable
          hashtable-set!/assert-consistent)
 
  (import (rnrs)
+         (scheme-tools srfi-compat :43)
          (only (scheme-tools) gensym pretty-print pe))
 
  (define not-found (gensym 'not-found))
@@ -22,6 +24,12 @@
      (vector-map cons
                  keys
                  vals)))
+
+ (define (hashtable-for-each proc table)
+   (let-values ([(keys vals) (hashtable-entries table)])
+     (vector-for-each proc
+                      keys
+                      vals)))
 
  (define (hashtable-ref/nodef table key)
    (let ([v (hashtable-ref table key not-found)])
