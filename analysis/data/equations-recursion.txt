@@ -1,0 +1,8 @@
+(= rootter32 sum-72ter32)
+(= sum-88ter32 (logsumexp -0.6931471805599453 -0.6931471805599453))
+(= product-83ter32 (+ sum-88ter32 -0.6931471805599453))
+(= product-94ter32 (+ sum-72ter32 -0.6931471805599453))
+(= product-96ter32 (+ sum-72ter32 -0.6931471805599453))
+(= sum-93ter32 (logsumexp product-96ter32 product-94ter32))
+(= product-86ter32 (+ sum-93ter32 -0.6931471805599453))
+(= sum-72ter32 (logsumexp product-86ter32 product-83ter32))

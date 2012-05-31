@@ -1,0 +1,472 @@
+288 +
+3 3 true
+116 +
+11 11 flip
+9 9 x
+271 +
+197 Ref 63 (let ((x (... => @t
+18 18 (lambda (f...
+128 +
+96 +
+25 25 (g g)
+234 +
+243 X
+30 30 foo
+225 X
+35 35 (flip)
+32 X
+39 X
+37 37 (%rec1)
+49 +
+104 Ind @t
+12 Ind (rand @<procedure &flip [char ...
+44 44 (apply (g ...
+81 Ref 44 (apply (g ... => @t
+31 Ind (procedure () @(syntax applica...
+46 46 g
+136 Ind (procedure (g) @(syntax applic...
+48 48 (if x true...
+206 Ref 353 x => @f
+19 Ind (procedure (foo) @(syntax appl...
+10 Ind @f
+50 50 %rec1
+240 +
+54 54 (lambda (%...
+55 Ind (procedure (%rec1) @(syntax la...
+56 56 (lambda ar...
+143 Ind @t
+361 Ind (procedure (g) @(syntax applic...
+51 Ind (procedure args @(syntax appli...
+245 X
+61 61 (Y (lambda...
+65 +
+63 63 (let ((x (...
+180 Ind (procedure (f) @(syntax applic...
+67 67 (lambda (Y...
+68 Ind (procedure (Y) @(syntax applic...
+161 Ind (procedure (f) @(syntax applic...
+264 Ref 56 (lambda ar... => (procedure args @(syntax appli...
+71 71 (%rec1)
+277 +
+196 Ind @t
+326 Ref 35 (flip) => @f
+280 +
+73 73 (if x true...
+34 Ref 179 Y => (procedure (f) @(syntax applic...
+333 Ref 35 (flip) => @t
+82 82 (lambda (x...
+210 X
+222 +
+253 -0.6931471805599453
+86 86 (lambda ()...
+205 +
+41 -0.6931471805599453
+235 Ref 152 apply => apply
+124 Ref 120 x => @t
+88 88 %rec1
+250 Ref 165 (if x true... => @t
+299 Ref 93 (f (lambda... => (procedure () @(syntax applica...
+173 X
+93 93 (f (lambda...
+346 X
+164 Ref 360 g => (procedure (g) @(syntax applic...
+192 X
+101 101 true
+189 X
+103 X
+269 Ref 135 (lambda (g... => (procedure (g) @(syntax applic...
+129 Ref 11 flip => (rand @<procedure &flip [char ...
+115 115 (if x true...
+348 X
+112 X
+260 Ind @t
+120 120 x
+339 X
+122 X
+296 Ref 86 (lambda ()... => (procedure () @(syntax applica...
+134 Ref 44 (apply (g ... => @t
+330 X
+125 125 f
+215 Ref 71 (%rec1) => @t
+328 X
+131 Ind ()
+130 130 args
+60 Ref 360 g => (procedure (g) @(syntax applic...
+155 Ind @t
+158 +
+135 135 (lambda (g...
+139 X
+217 Ind @t
+295 Ind (procedure () @(syntax applica...
+144 +
+142 142 x
+340 X
+194 X
+286 Ref 25 (g g) => (procedure () @(syntax applica...
+357 Ref 364 (g g) => (procedure () @(syntax applica...
+152 152 apply
+182 X
+178 Ref 82 (lambda (x... => (procedure (x y) @(syntax if (...
+229 Ind (procedure (g) @(syntax applic...
+261 Ref 63 (let ((x (... => @t
+278 Ref 82 (lambda (x... => (procedure (x y) @(syntax if (...
+105 Ref 48 (if x true... => @t
+57 Ind (procedure args @(syntax appli...
+342 X
+160 160 (lambda (f...
+212 X
+241 Ref 9 x => @f
+170 +
+165 165 (if x true...
+175 X
+263 +
+177 +
+344 X
+181 +
+111 Ref 130 args => ()
+83 Ind (procedure (x y) @(syntax if (...
+179 179 Y
+22 Ref 93 (f (lambda... => (procedure () @(syntax applica...
+153 Ind apply
+156 Ref 101 true => @t
+323 X
+186 186 (let ((g (...
+97 Ref 125 f => (procedure (%rec1) @(syntax la...
+29 Ref 186 (let ((g (... => (procedure () @(syntax applica...
+4 Ind @t
+119 Ref 35 (flip) => @t
+202 +
+252 Ind @f
+92 Ref 82 (lambda (x... => (procedure (x y) @(syntax if (...
+80 Ind @t
+303 Ind @t
+191 +
+237 +
+306 X
+114 Ref 37 (%rec1) => @t
+220 X
+285 Ind (procedure () @(syntax applica...
+21 Ind (procedure () @(syntax applica...
+204 X
+255 X
+209 +
+102 Ind @t
+207 +
+211 +
+213 X
+216 X
+133 Ind @t
+113 Ind @t
+363 +
+169 Ref 115 (if x true... => @t
+218 Ref 73 (if x true... => @t
+311 X
+224 +
+231 +
+249 Ind @t
+228 228 (lambda (g...
+247 X
+238 Ref 142 x => @t
+151 Ref 3 true => @t
+298 Ind (procedure () @(syntax applica...
+354 Ind @f
+28 Ind (procedure () @(syntax applica...
+337 X
+272 Ref 54 (lambda (%... => (procedure (%rec1) @(syntax la...
+168 Ind @t
+214 Ind @t
+367 X
+121 Ind @t
+242 +
+239 X
+148 Ref 35 (flip) => @f
+244 +
+365 +
+251 X
+254 +
+359 X
+259 X
+159 Ref 228 (lambda (g... => (procedure (g) @(syntax applic...
+257 +
+267 X
+293 X
+265 265 (let* () (...
+335 X
+141 Ref 50 %rec1 => (procedure args @(syntax appli...
+321 X
+89 Ind (procedure args @(syntax appli...
+352 X
+279 279 (let* () (...
+284 X
+287 X
+301 X
+292 +
+40 Ind @t
+290 290 (begin (de...
+294 X
+150 Ind @t
+304 Ref 279 (let* () (... => @t
+297 X
+318 +
+350 X
+232 Ref 46 g => (procedure (g) @(syntax applic...
+305 +
+307 X
+47 Ind (procedure (g) @(syntax applic...
+310 +
+282 Ind @t
+312 +
+199 Ind @t
+314 X
+200 Ref 290 (begin (de... => @t
+317 X
+283 Ref 265 (let* () (... => @t
+320 +
+185 Ref 82 (lambda (x... => (procedure (x y) @(syntax if (...
+100 Ref 35 (flip) => @t
+322 +
+324 X
+327 +
+203 Ref 35 (flip) => @f
+329 +
+331 X
+336 +
+334 +
+275 Ref 30 foo => (procedure () @(syntax applica...
+126 Ind (procedure (%rec1) @(syntax la...
+319 Ref 18 (lambda (f... => (procedure (foo) @(syntax appl...
+338 +
+341 +
+289 Ref 46 g => (procedure (g) @(syntax applic...
+309 Ref 61 (Y (lambda... => (procedure () @(syntax applica...
+108 Ref 88 %rec1 => (procedure args @(syntax appli...
+316 Ref 67 (lambda (Y... => (procedure (Y) @(syntax applic...
+343 +
+345 +
+223 Ref 160 (lambda (f... => (procedure (f) @(syntax applic...
+356 +
+351 +
+349 +
+353 353 x
+358 +
+355 X
+360 360 g
+87 Ind (procedure () @(syntax applica...
+366 +
+362 root
+364 364 (g g)
+#
+116 204
+3 4
+288 297
+271 32
+9 10
+11 12
+96 294
+128 251
+128 39
+18 19
+243 21
+243 22
+234 259
+25 211
+225 28
+225 29
+30 31
+32 224
+32 34
+35 329
+37 65
+39 40
+39 41
+49 122
+44 170
+46 47
+48 49
+50 51
+240 213
+54 55
+56 57
+245 242
+245 60
+61 334
+63 254
+65 139
+67 68
+277 103
+71 191
+73 144
+280 307
+222 314
+210 80
+210 81
+82 83
+205 112
+86 87
+88 89
+346 358
+346 92
+93 292
+173 96
+173 97
+189 322
+189 100
+101 102
+103 104
+103 105
+192 327
+192 108
+348 336
+348 111
+112 113
+112 114
+115 116
+339 345
+339 119
+120 121
+122 181
+122 124
+125 126
+330 128
+330 129
+130 131
+328 133
+328 134
+135 136
+158 284
+139 209
+139 141
+142 143
+144 239
+340 351
+340 148
+194 150
+194 151
+152 153
+182 155
+182 156
+342 158
+342 159
+160 161
+212 244
+212 164
+165 366
+175 168
+175 169
+170 355
+263 173
+177 175
+344 177
+344 178
+179 180
+181 182
+323 207
+323 185
+186 257
+202 189
+202 324
+191 192
+237 194
+306 196
+306 197
+220 199
+220 200
+255 202
+255 203
+204 205
+204 206
+207 216
+209 210
+211 212
+213 214
+213 215
+216 217
+216 218
+363 220
+311 222
+311 223
+224 225
+231 287
+228 229
+247 231
+247 232
+337 234
+337 235
+367 237
+367 238
+239 240
+239 241
+242 243
+244 245
+365 247
+359 249
+359 250
+251 252
+251 253
+254 255
+254 331
+257 267
+259 260
+259 261
+293 263
+293 264
+265 320
+267 341
+267 269
+335 271
+335 272
+321 305
+321 275
+352 277
+352 278
+279 280
+301 282
+301 283
+284 285
+284 286
+287 288
+287 289
+290 310
+292 293
+294 295
+294 296
+297 298
+297 299
+318 301
+350 303
+350 304
+305 306
+307 312
+307 309
+310 311
+312 317
+314 349
+314 316
+317 318
+317 319
+320 321
+322 323
+324 343
+324 326
+327 328
+329 330
+331 338
+331 333
+334 335
+336 337
+338 339
+338 340
+341 342
+343 344
+345 346
+356 348
+349 350
+351 352
+353 354
+355 356
+355 357
+358 359
+360 361
+362 363
+364 365
+366 367
