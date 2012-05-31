@@ -27,9 +27,13 @@
  (define (recur->string recur)
    (recur-state->string (recur-state recur)))
 
- (define/kw (recur-state->string state [num-chars :default 80])
+ (define/kw (recur-state->string state [num-chars :default 80] [show-env :default #f])
    (if (&pair? state)
-       (->string:n (syntax->original-expr (&car state)) num-chars)
+       (string-append (->string:n (syntax->original-expr (&car state)) num-chars)
+                      " "
+                      (if show-env
+                          (->string (vector-map car (&expand-recursive (&cdr state))))
+                          ""))
        (->string:n (&expand-recursive state) num-chars)))
 
  (define (show-stack stack)
