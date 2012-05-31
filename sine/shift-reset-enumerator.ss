@@ -12,9 +12,16 @@
 
  (import (rnrs)
          (sine delimcc-simple-r6rs)
+         (sine value-number)
          (scheme-tools)
+         (scheme-tools queue)
+         (scheme-tools math)
          (scheme-tools hash)
          (scheme-tools srfi-compat :1))
+
+
+ ;; --------------------------------------------------------------------
+ ;; xrp-cont data structure
 
  (define-record-type xrp-cont
    (fields id proc vals probs)
@@ -28,15 +35,31 @@
        (xrp-cont-id obj)
        obj))
 
+
+ ;; --------------------------------------------------------------------
+ ;; Globals
+
  (define root #f)
 
  (define edge-table (make-eq-hashtable))
 
+ (define xrp-count 0)
+
+ (define xrp-count-limit 10000)
+
+ (define queue (make-empty-queue))
+
+
+ ;; --------------------------------------------------------------------
+ ;; Algorithm
+
  (define (handler obj)
    (when (eq? root #f)
          (set! root obj))
-   (when (xrp-cont? obj)
-         (for-each (lambda (v p) (store-edge! obj ((xrp-cont-proc obj) v) p))
+   (when (and (xrp-cont? obj)
+              (not (> xrp-count xrp-count-limit)))
+         (set! xrp-count (+ xrp-count 1))
+         (for-each (lambda (v p) (enqueue! queue (lambda () (store-edge! obj ((xrp-cont-proc obj) v) p))))
                    (xrp-cont-vals obj)
                    (xrp-cont-probs obj)))
    obj)
@@ -49,29 +72,45 @@
                                         (get-id from)
                                         '()))))
 
+ (define (marginal-value? value)
+   (not (equal? (&expand-recursive value) value)))
+
  (define (edge-table->marginals table root p)
    (let ([marginals (make-equal-hash-table)])
      (let loop ([root root]
                 [p p])
        (let ([children (hashtable-ref table root '())])
-         (if (null? children)
+         (if (and (null? children)
+                  (marginal-value? root))
              (hash-table-set! marginals
                               root
-                              (+ p (hash-table-ref/default marginals
-                                                           root
-                                                           0.0)))
+                              (logsumexp p
+                                         (hash-table-ref/default marginals
+                                                                 root
+                                                                 LOG-PROB-0)))
              (for-each (lambda (child) (loop (car child)
-                                             (* p (cdr child))))
+                                        (+ p (cdr child))))
                        children))))
      marginals))
 
  (define (enumeration-source p)
-   (shift f (handler (make-xrp-cont f '(#t #f) (list p (- 1 p))))))
+   (shift f (handler (make-xrp-cont f
+                                    (map compress-boolean (list #t #f))
+                                    (list (log p) (log (- 1 p)))))))
 
- (define (enumerate proc)
+ (define (process-queue!)
+   (if (queue-empty? queue)
+       'done
+       (begin
+         ((dequeue! queue))
+         (process-queue!))))
+
+ (define/kw (enumerate proc [limit :default 10000])
    (set! root #f)
    (set! edge-table (make-eq-hashtable))
-   (reset (proc enumeration-source))
-   (hash-table->alist (edge-table->marginals edge-table (get-id root) 1.0)))
+   (set! xrp-count-limit limit)
+   (enqueue! queue (lambda () (reset (proc enumeration-source))))
+   (process-queue!)
+   (hash-table->alist (edge-table->marginals edge-table (get-id root) LOG-PROB-1)))
 
  )
