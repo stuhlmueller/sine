@@ -71,7 +71,7 @@
      (env-loop &top-env)))
 
  (define (lookup-value-by-id address &env)
-   (&vector-ref (frame-values (&list-ref &env (car address)))
+   (&vector-ref (frame-values (&list-ref/n &env (car address)))
                 (cdr address)))
 
  (define (lookup-variable-id var &env)
