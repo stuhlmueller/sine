@@ -4,7 +4,8 @@
 
  (sine spn)
 
- (export marginalize)
+ (export marginalize
+         lookup-marginals)
 
  (import (rnrs)
          (scheme-tools)
@@ -24,6 +25,17 @@
    (when verbose
          (apply pe args)))
 
+ (define (lookup-marginals spn solutions)
+   (let* ([terminal-ids (hashtable-ref (spn->terminal-ids spn) 'root '())]
+          [eqn-ids (map (lambda (terminal-id) (sym-append 'root terminal-id))
+                        terminal-ids)])
+     (map (lambda (eqn-id terminal-id)
+            (let ([logprob (hashtable-ref/nodef solutions eqn-id)]
+                  [value (&expand-recursive (terminal-id->value terminal-id))])
+              (pair value logprob)))
+          eqn-ids
+          terminal-ids)))
+
  (define (marginalize expr)
    (let* ([interpreter-thunk (lambda () (coroutine-interpreter (with-preamble expr)))]
           [_ (verbose-pe "Building SPN...\n")]
@@ -33,15 +45,7 @@
           [_ (verbose-pe "Solving equations...\n")]
           [solutions (opt-timeit verbose (solve-equations equations))]
           [_ (verbose-pe "done!\n")])
-     (let* ([terminal-ids (hashtable-ref (spn->terminal-ids spn) 'root '())]
-            [eqn-ids (map (lambda (terminal-id) (sym-append 'root terminal-id))
-                          terminal-ids)])
-       (map (lambda (eqn-id terminal-id)
-              (let ([logprob (hashtable-ref/nodef solutions eqn-id)]
-                    [value (&expand-recursive (terminal-id->value terminal-id))])
-                (pair value logprob)))
-            eqn-ids
-            terminal-ids))))
+     (lookup-marginals spn solutions)))
 
  )
 
