@@ -296,7 +296,7 @@
  (define (&list-ref/n n i)
    (if (= i 0)
        (&car n)
-       (&list-ref (&cdr n) (- i 1))))
+       (&list-ref/n (&cdr n) (- i 1))))
 
  (define (&list-ref n i)
    (&list-ref/n n (&expand-number i)))
