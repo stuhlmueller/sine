@@ -17,13 +17,20 @@
          (scheme-tools watcher)
          (scheme-tools))
 
- (define seen? (make-watcher))
+ (define seen-table (make-eq-hashtable))
+
+ (define (seen? key)
+   (hashtable-ref/default seen-table
+                          key
+                          (lambda ()
+                            (begin
+                              (hashtable-set! seen-table key #t)
+                              #f))))
 
  (define (get-root-ids spn)
    (let-values ([(keys vals) (hashtable-entries (spn->nodetypes spn))])
      (let ([root-ids '()])
        (vector-for-each (lambda (id type)
-                          ;; (pe id " " type "\n")
                           (when (eq? type 'root)
                                 (set! root-ids (cons id root-ids))))
                         keys
@@ -34,6 +41,7 @@
    (let ([eqns (opt-timeit verbose (build-all-equations spn))])
      (when verbose (pe "Equations: " (length eqns) "\n"))
      (let ([simplified-eqns (opt-timeit verbose (simplify-equations eqns))])
+       (when verbose (pe "Simplified equations: " (length simplified-eqns) "\n"))
        simplified-eqns)))
 
  (define (build-all-equations spn)
@@ -49,11 +57,11 @@
      eqns))
 
  (define (build-equations spn terminal-id root-id add-eqn!)
-   (if (seen? (list 'build-equations terminal-id root-id))
+   (if (seen? (sym-append terminal-id root-id))
        '()
        (let ([tid (lambda (id) (sym-append id terminal-id))])
          (let build ([from-id root-id])
-           (if (seen? (list 'build terminal-id root-id from-id))
+           (if (seen? (sym-append terminal-id root-id from-id))
                #f
                (let ([from-type (hashtable-ref/nodef (spn->nodetypes spn) from-id)])
                  (cond [(eq? from-type 'sum)
