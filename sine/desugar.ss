@@ -122,17 +122,31 @@
          (def-body (rest (rest expr))))
      `(define ,def-var (lambda ,def-params ,@def-body))))
 
- (define (rejection? expr)
+ (define (query? expr)
+   (tagged-list? expr 'query))
+
+ (define (rejection-query? expr)
    (tagged-list? expr 'rejection-query))
 
- (define (desugar-rejection expr)
-   `(nfqp-rejection-query
-     (lambda () (begin ,@(drop-right (rest expr) 2)
-                  (pair ,(list-ref expr (- (length expr) 2)) ,(last expr))))))
+ (define (desugar-query expr)
+   (let ([condition-expr (last expr)]
+         [query-expr (list-ref expr (- (length expr) 2))])
+     `(nfqp-query
+       (lambda () (begin ,@(drop-right (rest expr) 2)
+                    (cons ,condition-expr
+                          (lambda () ,query-expr)))))))
 
  (define (begin-defines? sexpr)
    (and (tagged-list? sexpr 'begin)
         (not (null? (filter (lambda (e) (tagged-list? e 'define)) sexpr)))))
+
+ (define (empty-begin? sexpr)
+   (and (tagged-list? sexpr 'begin)
+        (null? (filter (lambda (e) (tagged-list? e 'define)) sexpr))
+        (= (length sexpr) 2)))
+
+ (define (desugar-empty-begin sexpr)
+   (second sexpr))
 
  (define (desugar-define-value sexpr)
    (if (define-fn? sexpr)
@@ -150,8 +164,10 @@
  (register-sugar! named-let? named-let->lambda)
  (register-sugar! case? desugar-case)
  (register-sugar! cond? desugar-cond)
- (register-sugar! rejection? desugar-rejection)
+ (register-sugar! query? desugar-query)
+ (register-sugar! rejection-query? desugar-query)
  (register-sugar! begin-defines? desugar-begin-defines)
+ (register-sugar! empty-begin? desugar-empty-begin)
  (register-sugar! define-fn? desugar-define-fn)
 
  )
