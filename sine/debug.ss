@@ -27,10 +27,10 @@
  (define (recur->string recur)
    (recur-state->string (recur-state recur)))
 
- (define (recur-state->string state)
+ (define/kw (recur-state->string state [num-chars :default 80])
    (if (&pair? state)
-       (->string:n (syntax->original-expr (&car state)) 80)
-       (->string:n (&expand-recursive state) 80)))
+       (->string:n (syntax->original-expr (&car state)) num-chars)
+       (->string:n (&expand-recursive state) num-chars)))
 
  (define (show-stack stack)
    (pe "stack:\n")
