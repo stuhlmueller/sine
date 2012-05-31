@@ -8,9 +8,11 @@
          simplify-equations)
 
  (import (rnrs)
+         (sine settings)
          (sine build-spn)
          (sine hashtable)
          (sine value-number)
+         (scheme-tools macros)
          (scheme-tools srfi-compat :1)
          (scheme-tools watcher)
          (scheme-tools))
@@ -29,9 +31,9 @@
        root-ids)))
 
  (define (spn-equations spn)
-   (let ([eqns (time (build-all-equations spn))])
-     (pe "Equations: " (length eqns) "\n")
-     (let ([simplified-eqns (time (simplify-equations eqns))])
+   (let ([eqns (opt-timeit verbose (build-all-equations spn))])
+     (when verbose (pe "Equations: " (length eqns) "\n"))
+     (let ([simplified-eqns (opt-timeit verbose (simplify-equations eqns))])
        simplified-eqns)))
 
  (define (build-all-equations spn)

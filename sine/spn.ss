@@ -8,7 +8,9 @@
 
  (import (rnrs)
          (scheme-tools)
+         (scheme-tools macros)
          (scheme-tools implementation-specific)
+         (sine settings)
          (sine build-spn)
          (sine preamble)
          (sine spn-solve)
@@ -18,8 +20,6 @@
          (sine value-number)
          (sine coroutine-id))
 
- (define verbose #f)
-
  (define (verbose-pe . args)
    (when verbose
          (apply pe args)))
@@ -27,11 +27,11 @@
  (define (marginalize expr)
    (let* ([interpreter-thunk (lambda () (coroutine-interpreter (with-preamble expr)))]
           [_ (verbose-pe "Building SPN...\n")]
-          [spn (time (build-spn interpreter-thunk))]
+          [spn (opt-timeit verbose (build-spn interpreter-thunk))]
           [_ (verbose-pe "Building equations...\n")]
           [equations (spn-equations spn)]
           [_ (verbose-pe "Solving equations...\n")]
-          [solutions (time (solve-equations equations))]
+          [solutions (opt-timeit verbose (solve-equations equations))]
           [_ (verbose-pe "done!\n")])
      (let* ([terminal-ids (hashtable-ref (spn->terminal-ids spn) 'root '())]
             [eqn-ids (map (lambda (terminal-id) (sym-append 'root terminal-id))

@@ -3,6 +3,7 @@
 ;; Incremental sampler using subproblems
 
 (import (rnrs)
+        (sine debug)
         (sine coroutine-interpreter)
         (sine preamble)
         (sine value-number)
@@ -19,21 +20,17 @@
 ;; --------------------------------------------------------------------
 ;; Utils
 
-(define (vector-sum vec)
-  (let ([total 0])
-    (vector-for-each (lambda (n) (set! total (+ total n))) vec)
-    total))
-
-(define (normalize-vector vec)
-  (let ([s (vector-sum vec)])
-    (vector-map (lambda (x) (/ x s))
-                vec)))
-
-(define (apply-recur recur)
-  (let ([syntax+env (&expand-pair (recur-state recur))])
-    (apply (recur-call recur)
-           (list (car syntax+env)
-                 (cdr syntax+env)))))
+(define (show-state state parent-state &slot)
+  (pe "state:\n")
+  (cond [(recur? state)
+         (pe "  recur: " (recur->string state) "\n"
+             "    global marg: " (marginal->string (get-global-marginal (recur-state state))) "\n"
+             "    local marg: " (marginal->string (get-local-marginal
+                                                   (recur-state parent-state) &slot)))]
+        [(terminal? state) (pe "  term: " (->string:n (&expand-recursive (terminal-value state)) 80))]
+        [(xrp? state) (pe "  xrp call: " (vector-map &expand-recursive (xrp-vals state)) " " (xrp-probs state))]
+        [else (pe state)])
+  (pe "\n"))
 
 
 ;; --------------------------------------------------------------------
@@ -111,62 +108,6 @@
   (show-marginal marginal)
   (pe "\n"))
 
-
-;; --------------------------------------------------------------------
-;; Debug tools
-
-(define (recur->string recur)
-  (recur-state->string (recur-state recur)))
-
-(define (recur-state->string state)
-  (if (&pair? state)
-      (->string:n (syntax->original-expr (&car state)) 80)
-      (->string:n (&expand-recursive state) 80)))
-
-(define (show-stack stack)
-  (pe "stack:\n")
-  (for-each (lambda (e i)
-              (pe "  " i ": " (recur->string e) "\n"))
-            stack
-            (reverse (iota (length stack))))
-  (pe "\n"))
-
-(define (show-state state parent-state &slot)
-  (pe "state:\n")
-  (cond [(recur? state)
-         (pe "  recur: " (recur->string state) "\n"
-             "    global marg: " (marginal->string (get-global-marginal (recur-state state))) "\n"
-             "    local marg: " (marginal->string (get-local-marginal
-                                                   (recur-state parent-state) &slot)))]
-        [(terminal? state) (pe "  term: " (->string:n (&expand-recursive (terminal-value state)) 80))]
-        [(xrp? state) (pe "  xrp call: " (vector-map &expand-recursive (xrp-vals state)) " " (xrp-probs state))]
-        [else (pe state)])
-  (pe "\n"))
-
-(define (show-slot &slot)
-  (pe "slot: " (slot->string &slot) "\n"))
-
-(define (slot->string &slot)
-  (apply string-append
-         `("[" ,@(map (lambda (&v) (string-append (&->string:n &v 30) ", "))
-                      (&expand-list &slot))
-           "]")))
-
-(define (&->string:n v n)
-  (->string:n (&expand-recursive v) n))
-
-(define (marginal->string marginal)
-  (apply string-append
-         `("{"
-           ,@(vector->list
-              (map-over-marginal-vector (lambda (v p) (string-append (&->string:n v 30) ", "
-                                                                (->string p) ";  "))
-                                        marginal))
-           "}"
-           )))
-
-(define (show-marginal marginal)
-  (display (marginal->string marginal)))
 
 
 ;; --------------------------------------------------------------------

@@ -217,7 +217,7 @@
             [term-is-new (store-terminal-id! root-id term-id)])
        (make-indicator-node! last-id term-id)
        (when term-is-new
-             (for-each (lambda (cb) (process-terminal root-id (terminal-id terminal) cb))
+             (for-each (lambda (callback) (process-terminal root-id (terminal-id terminal) callback))
                        (get-callbacks root-id)))))
 
    (define (recur->string recur)
