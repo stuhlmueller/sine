@@ -8,18 +8,17 @@
         (rename (sine external cosh)
                 (marginalize cosh-marginalize)))
 
-(define test-expr
+(define query-expr
   '(begin
-     (define foo
-       (lambda ()
-         (let ([x (flip)]
-               [y (flip)])
-           (if x true (foo)))))
-     (foo)))
+     (query
+      (define x (flip))
+      (define y (flip))
+      x
+      (or x y))))
 
 (define (main)
-  (let ([sine-marginal (sine-marginalize test-expr)]
-        [cosh-marginal (cosh-marginalize test-expr)])
+  (let ([sine-marginal (sine-marginalize query-expr)]
+        [cosh-marginal (cosh-marginalize query-expr)])
     (pe "sine:\n")
     (for-each pretty-print (log-marginal->marginal sine-marginal))
     (pe "\ncosh:\n")
