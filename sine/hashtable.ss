@@ -40,9 +40,7 @@
  (define (hashtable-ref/default table key thunk)
    (let ([v (hashtable-ref table key not-found)])
      (if (eq? v not-found)
-         (let ([v* (thunk)])
-           (hashtable-set! table key v*)
-           v*)
+         (thunk)
          v)))
 
  (define (hashtable-values ht)
