@@ -14,6 +14,8 @@
          &-
          &/
          &=
+         &<
+         &>
          &and
          &cadddr
          &caddr
@@ -37,6 +39,7 @@
          &id
          &list
          &list-ref
+         &list-ref/n
          &not
          &null?
          &null
@@ -260,11 +263,17 @@
  (define (&and . args)
    (compress-boolean (every (lambda (x) x) (map &expand-boolean args))))
 
+ (define (&< a b)
+   (compress-boolean (< (&expand-number a) (&expand-number b))))
+
+ (define (&> a b)
+   (compress-boolean (> (&expand-number a) (&expand-number b))))
+
  (define (&= a b)
    (compress-boolean (= (&expand-number a) (&expand-number b))))
 
- (define (&+ a b)
-   (compress-number (+ (&expand-number a) (&expand-number b))))
+ (define (&+ . args)
+   (compress-number (apply + (map &expand-number args))))
 
  (define (&- a b)
    (compress-number (- (&expand-number a) (&expand-number b))))
@@ -284,10 +293,13 @@
  (define (&list . args)
    (compress-list args))
 
- (define (&list-ref n i)
+ (define (&list-ref/n n i)
    (if (= i 0)
        (&car n)
        (&list-ref (&cdr n) (- i 1))))
+
+ (define (&list-ref n i)
+   (&list-ref/n n (&expand-number i)))
 
  (define (&cons n1 n2)
    (flat-obj->num (cons n1 n2)))
@@ -325,7 +337,7 @@
 
  (define (&null? n)
    (let ([obj (hashtable-ref (obj-store) n not-found)])
-     (null? obj)))
+     (compress-boolean (null? obj))))
 
  (define (&pair? n)
    (let ([obj (hashtable-ref (obj-store) n not-found)])
