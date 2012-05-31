@@ -40,6 +40,7 @@
    (let* ([interpreter-thunk (lambda () (coroutine-interpreter (with-preamble expr)))]
           [_ (verbose-pe "Building SPN...\n")]
           [spn (opt-timeit verbose (build-spn interpreter-thunk))]
+          [_ (verbose-pe "SPN # edges: " (hashtable-size (spn->edges spn)) "\n")]
           [_ (verbose-pe "Building equations...\n")]
           [equations (spn-equations spn)]
           [_ (verbose-pe "Solving equations...\n")]
