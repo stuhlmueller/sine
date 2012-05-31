@@ -20,12 +20,9 @@
 
 (define test-expr
   '(begin
-     (define foo
-       (lambda ()
-         (let ([x (flip)]
-               [y (flip)])
-           (if x true (foo)))))
-     (foo)))
+     (let ([y (flip)]
+           [x (flip)])
+       ((lambda () (if x true false))))))
 
 (define counter
   (get-counter))
@@ -63,7 +60,9 @@
       'root
       (string-append (subroot-number node-ids node)
                      " "
-                     (recur-state->string (id->object (sym+num->num node)) 'num-chars 10))))
+                     (recur-state->string (id->object (sym+num->num node))
+                                          'num-chars 10
+                                          'show-env #t))))
 
 (define (prob-info spn node-ids node)
   (hashtable-ref (spn->probs spn) node #f))
