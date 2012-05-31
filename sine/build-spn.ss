@@ -21,7 +21,9 @@
          (scheme-tools srfi-compat :1)
          (scheme-tools srfi-compat :43)
          (scheme-tools queue)
+         (scheme-tools debug)
          (scheme-tools)
+         (sine utils)
          (sine hashtable)
          (only (scheme-tools) gensym)
          (sine coroutine-interpreter)
@@ -35,14 +37,6 @@
 
  (define (readable-gensym sym)
    (sym+num (sym-append sym '-) (counter)))
-
-
- (define (apply-recur recur)
-   ;; (pe (recur-state recur) "\n")
-   (let ([syntax+env (&expand-pair (recur-state recur))])
-     (apply (recur-call recur)
-            (list (car syntax+env)
-                  (cdr syntax+env)))))
 
  (define (make-subthunk recur)
    (lambda () (reset (make-terminal
@@ -199,9 +193,6 @@
                         (xrp-vals xrp)
                         (xrp-probs xrp))))
 
-   (define (&->string:n v n)
-     (->string:n (&expand-recursive v) n))
-
    (define (process-terminal root-id term-id callback)
      (let ([product-id (make-product-node! (callback->source-id callback))])
        (make-ref-node! product-id root-id term-id)
@@ -220,14 +211,6 @@
              (for-each (lambda (callback) (process-terminal root-id (terminal-id terminal) callback))
                        (get-callbacks root-id)))))
 
-   (define (recur->string recur)
-     (recur-state->string (recur-state recur)))
-
-   (define (recur-state->string state)
-     (if (&pair? state)
-         (->string:n (syntax->original-expr (&car state)) 80)
-         (->string:n (&expand-recursive state) 80)))
-
    (define (store-callback! source-id source-cont subroot-id)
      (let* ([old-callbacks (get-callbacks subroot-id)]
             [new-callback (make-callback source-id source-cont)]
@@ -236,7 +219,6 @@
        new-callback))
 
    (define (build-spn:recur! last-id recur)
-     ;; (pe "build-spn:recur! " last-id " " (recur->string recur) "\n")
      (let-values ([(sum-id) (make-sum-node! last-id)]
                   [(subroot-id subroot-new) (recur-id/new? recur)])
        (let ([new-callback (store-callback! sum-id
