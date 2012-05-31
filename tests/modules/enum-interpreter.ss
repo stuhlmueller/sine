@@ -15,5 +15,13 @@
                          x))))
      (f x)))
 
+(define query-prog
+  '(begin
+     (query
+      (define x (flip))
+      true
+      (flip .01))))
+
 (for-each pretty-print
-          (enum-interpreter test-prog))
+          (alist-map (lambda (v p) (cons v (exp p)))
+                     (enum-interpreter query-prog)))

@@ -8,6 +8,7 @@
         (scheme-tools graph utils)
         (sine polygraph)
         (sine coroutine-id)
+        (sine value-number)
         (sine coroutine-interpreter)
         (scheme-tools srfi-compat :1))
 
@@ -17,7 +18,7 @@
          [polymap (polygraph->polymap graph)]
          [components (strongly-connected-components polymap)]
          [marginals (marginalize-components graph components)]
-         [marginal-values (map (compose terminal-id->value car) marginals)]
+         [marginal-values (map (compose &expand-recursive terminal-id->value car) marginals)]
          [marginal-probs (map (compose exp cdr) marginals)])
     ;; (display-graph graph)
     (zip marginal-values marginal-probs)))
