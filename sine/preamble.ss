@@ -36,6 +36,21 @@
               (cons (proc (car lst))
                     (map proc (cdr lst))))))
 
+      ;; okmij.org/ftp/Computation/fixed-point-combinators.html
+      (define (Y* . fl)
+        (map (lambda (f) (f))
+             ((lambda (x) (x x))
+              (lambda (p)
+                (map
+                 (lambda (f)
+                   (lambda ()
+                     (apply f
+                            (map
+                             (lambda (ff)
+                               (lambda y (apply (ff) y)))
+                             (p p)))))
+                 fl)))))
+
       ,expr
 
       ))
