@@ -15,6 +15,7 @@
 
  (import (rnrs)
          (sine value-number)
+         (scheme-tools)
          (scheme-tools srfi-compat :43)
          (scheme-tools srfi-compat :1))
 
@@ -41,8 +42,12 @@
 
  (define (lookup-variable-value-and-id var &top-env)
    (let ([address (&vector-index (lambda (v) (eq? var (car v))) &top-env)])
-     (cons (&cdr (&vector-ref &top-env address))
-           address)))
+     (with-exception-handler (lambda (exn)
+                               (pen "Exception: variable '" var "' not found.")
+                               (raise-continuable exn))
+                             (lambda ()
+                               (cons (&cdr (&vector-ref &top-env address))
+                                     address)))))
 
  (define (lookup-value-by-id address &env)
    (&cdr (&vector-ref &env address)))
