@@ -149,7 +149,7 @@
                                   (cdr eqn))])
            (set! changed #t)
            (if (null? remainder)
-               'LOG-PROB-0
+               'LOG-PROB-1
                `(+ ,@remainder)))]
 
         [(and (list? eqn)
