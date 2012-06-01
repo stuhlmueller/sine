@@ -24,8 +24,11 @@
          (list 'not &not)
          (list 'or &or)
          (list 'and &and)
+         (list 'equal? &eq?) ;; eq? == equal? in compressed space
          (list '< &<)
          (list '> &>)
+         (list '>= &>=)
+         (list '<= &<=)
          (list '= &=)
          (list '+ &+)
          (list '- &-)

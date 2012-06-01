@@ -51,6 +51,40 @@
                              (p p)))))
                  fl)))))
 
+      (define sum
+        (lambda (lst)
+          (apply + lst)))
+
+      (define all
+        (lambda (lst)
+          (if (null? lst)
+              #t
+              (if (car lst)
+                  (all (cdr lst))
+                  #f))))
+
+      (define any
+        (lambda (lst)
+          (if (null? lst)
+              #f
+              (if (car lst)
+                  #t
+                  (any (cdr lst))))))
+
+      (define %sum-repeat
+        (lambda (proc n s)
+          (if (= n 0)
+              s
+              (%sum-repeat proc
+                           (- n 1)
+                           (+ s (proc))))))
+
+      (define (sum-repeat proc n)
+        (%sum-repeat proc n 0))
+
+      (define (nflip p)
+        (if (flip p) 1 0))
+
       ,expr
 
       ))

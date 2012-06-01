@@ -16,6 +16,8 @@
          &=
          &<
          &>
+         &<=
+         &>=
          &and
          &cadddr
          &caddr
@@ -269,6 +271,12 @@
  (define (&> a b)
    (compress-boolean (> (&expand-number a) (&expand-number b))))
 
+ (define (&<= a b)
+   (compress-boolean (< (&expand-number a) (&expand-number b))))
+
+ (define (&>= a b)
+   (compress-boolean (> (&expand-number a) (&expand-number b))))
+
  (define (&= a b)
    (compress-boolean (= (&expand-number a) (&expand-number b))))
 
@@ -285,7 +293,7 @@
    (compress-number (/ (&expand-number a) (&expand-number b))))
 
  (define (&eq? n1 n2)
-   (eq? n1 n2))
+   (compress-boolean (eq? n1 n2)))
 
  (define (&id n)
    n)

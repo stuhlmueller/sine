@@ -63,7 +63,7 @@
                       (env-loop (enclosing-environment &env)))
                (cons (&vector-ref &vals var-index)
                      (cons frame-loc var-index)))))
-       (if (&eq? &env the-empty-environment)
+       (if (eq? &env the-empty-environment)
            (raise-continuable "Unbound variable")
            (let ([&frame (first-frame &env)])
              (find-var (&expand-recursive (frame-variables &frame))
