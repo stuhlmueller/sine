@@ -276,10 +276,10 @@
    (compress-boolean (> (&expand-number a) (&expand-number b))))
 
  (define (&<= a b)
-   (compress-boolean (< (&expand-number a) (&expand-number b))))
+   (compress-boolean (<= (&expand-number a) (&expand-number b))))
 
  (define (&>= a b)
-   (compress-boolean (> (&expand-number a) (&expand-number b))))
+   (compress-boolean (>= (&expand-number a) (&expand-number b))))
 
  (define (&= a b)
    (compress-boolean (= (&expand-number a) (&expand-number b))))
