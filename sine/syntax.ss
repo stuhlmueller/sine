@@ -6,7 +6,9 @@
 
  (sine syntax)
 
- (export syntax:self-evaluating?
+ (export syntax:cache?
+         cache-syntax->content
+         syntax:self-evaluating?
          syntax:variable?
          syntax:quoted?
          syntax:lambda?
@@ -74,6 +76,10 @@
  (define syntax:lambda? (syntax:is-type 'lambda))
  (define syntax:if? (syntax:is-type 'if))
  (define syntax:application? (syntax:is-type 'application))
+ (define syntax:cache? (syntax:is-type 'cache))
+
+ (define (cache-syntax->content syntax)
+   (syntax->&sub syntax))
 
  (define (quote-syntax->text-of-quotation syntax)
    (syntax->&sub syntax))
@@ -144,6 +150,11 @@
             (make-syntax 'quoted
                          sugared-sexpr
                          (compress-recursive (cadr sexpr)))]
+
+           [(cache? sexpr)
+            (make-syntax 'cache
+                         sugared-sexpr
+                         (recurse (cadr sexpr)))]
 
            [(lambda? sexpr)
             (let* ([formal-parameters (lambda-parameters sexpr)]

@@ -40,7 +40,7 @@
 
  (define (make-subthunk recur)
    (lambda () (reset (make-terminal
-                 (apply-recur recur)))))
+                      (apply-recur recur)))))
 
  (define (make-callback source-id source-cont)
    (list 'callback source-id source-cont))
@@ -199,7 +199,7 @@
        (enqueue! queue
                  (make-task product-id
                             (lambda () ((callback->source-cont callback)
-                                   (terminal-id->value term-id)))))))
+                                        (terminal-id->value term-id)))))))
 
    (define (build-spn:terminal! last-id terminal)
      ;; (pe "build-spn:terminal! " last-id " " (&->string:n (terminal-value terminal) 30) "\n")

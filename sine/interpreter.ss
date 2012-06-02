@@ -42,6 +42,7 @@
          [(syntax:quoted? syntax) eval-quoted]
          [(syntax:lambda? syntax) eval-lambda]
          [(syntax:if? syntax) eval-if]
+         [(syntax:cache? syntax) eval-cache]
          [(syntax:application? syntax) eval-application]
          [else (error syntax "eval: unknown expression type")]))
 
@@ -53,6 +54,9 @@
    (if (true? (&expand-boolean (recur (if-syntax->if-predicate syntax) env)))
        (recur (if-syntax->if-consequent syntax) env)
        (recur (if-syntax->if-alternative syntax) env)))
+
+ (define (eval-cache syntax env recur source)
+   (recur (cache-syntax->content syntax) env))
 
  (define (eval-lambda syntax env recur source)
    (make-procedure (lambda-syntax->lambda-parameters syntax)

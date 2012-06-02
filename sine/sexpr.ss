@@ -4,7 +4,9 @@
 
  (sine sexpr)
 
- (export self-evaluating?
+ (export cache?
+         cache-content
+         self-evaluating?
          self-eval-vars
          quoted?
          variable?
@@ -43,6 +45,10 @@
 
  (define (quoted? exp)
    (tagged-list? exp 'quote))
+
+ (define (cache? exp) (tagged-list? exp 'cache))
+
+ (define cache-content cadr)
 
  (define (variable? exp) (symbol? exp))
 

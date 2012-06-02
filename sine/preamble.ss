@@ -82,6 +82,9 @@
       (define (sum-repeat proc n)
         (%sum-repeat proc n 0))
 
+      (define (cache proc)
+        (proc))
+
       (define (nflip p)
         (if (flip p) 1 0))
 
