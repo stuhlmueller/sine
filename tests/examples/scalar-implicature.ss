@@ -33,27 +33,37 @@
      (define (sentence-prior)
        (uniform-draw (list all-p some-p none-p)))
 
-     (define (listener speaker-access sentence depth)
-       (rejection-query
-        (define state (state-prior))
-        state
-        (sentence state)))
-     ;; (if (= 0 depth)
-     ;;     (sentence state)
-     ;;     (equal? sentence
-     ;;             (speaker speaker-access state (- depth 1))))))
+     (define listener*
+       (lambda (%listener %speaker)
+         (lambda (speaker-access sentence depth)
+           (rejection-query
+            (define state (state-prior))
+            state
+            (if (= 0 depth)
+                (sentence state)
+                (equal? sentence
+                        (%speaker speaker-access state (- depth 1)))
+                )))))
 
-     (define (speaker access state depth)
-       (rejection-query
-        (define s (sentence-prior))
-        s
-        (equal? (belief state access)
-                (listener access s depth))))
+     (define speaker*
+       (lambda (%listener %speaker)
+         (lambda (access state depth)
+           (rejection-query
+            (define s (sentence-prior))
+            s
+            (equal? (belief state access)
+                    (%listener access s depth))))))
+
+     (define listener+speaker (Y* listener* speaker*))
+
+     (define listener (first listener+speaker))
+
+     (define speaker (second listener+speaker))
 
      (define (num-true state)
        (sum (map (lambda (x) (if x 1 0)) state)))
 
-     (num-true (listener '(#t #t #t) some-p 5))
+     (num-true (listener '(#t #t #t) some-p 1))
 
      ))
 
