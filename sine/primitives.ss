@@ -15,7 +15,10 @@
 
  (define deterministic-primitive-procedures
    (list (list 'car &car)
+         (list 'first &car)
          (list 'cadr &cadr)
+         (list 'second &cadr)
+         (list 'display (lambda (n) (begin (pen (&expand-recursive n)) &false)))
          (list 'cdr &cdr)
          (list 'cons &cons)
          (list 'null? &null?)
