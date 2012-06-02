@@ -17,16 +17,6 @@
          (scheme-tools watcher)
          (scheme-tools))
 
- (define seen-table (make-eq-hashtable))
-
- (define (seen? key)
-   (hashtable-ref/default seen-table
-                          key
-                          (lambda ()
-                            (begin
-                              (hashtable-set! seen-table key #t)
-                              #f))))
-
  (define (get-root-ids spn)
    (let-values ([(keys vals) (hashtable-entries (spn->nodetypes spn))])
      (let ([root-ids '()])
@@ -45,55 +35,69 @@
        simplified-eqns)))
 
  (define (build-all-equations spn)
-   (let* ([root-ids (get-root-ids spn)]
-          [eqns '()]
-          [add-eqn! (lambda (eqn) (set! eqns (cons eqn eqns)))])
-     (for-each (lambda (root-id)
-                 (let ([terminal-ids (hashtable-ref/nodef (spn->terminal-ids spn) root-id)])
-                   (for-each (lambda (terminal-id)
-                               (build-equations spn terminal-id root-id add-eqn!))
-                             terminal-ids)))
-               root-ids)
-     eqns))
 
- (define (build-equations spn terminal-id root-id add-eqn!)
-   (if (seen? (sym-append terminal-id root-id))
-       '()
-       (let ([tid (lambda (id) (sym-append id terminal-id))])
-         (let build ([from-id root-id])
-           (if (seen? (sym-append terminal-id root-id from-id))
-               #f
-               (let ([from-type (hashtable-ref/nodef (spn->nodetypes spn) from-id)])
-                 (cond [(eq? from-type 'sum)
-                        (let ([child-ids (hashtable-ref/nodef (spn->edges spn) from-id)])
-                          (add-eqn! (if (= (length child-ids) 1)
-                                        `(= ,(tid from-id) ,@(map tid child-ids))
-                                        `(= ,(tid from-id) (logsumexp ,@(map tid child-ids)))))
-                          (for-each build child-ids))]
-                       [(eq? from-type 'root)
-                        (let ([child-ids (hashtable-ref/nodef (spn->edges spn) from-id)])
-                          (assert (= (length child-ids) 1))
-                          (add-eqn! `(= ,(tid from-id) ,@(map tid child-ids)))
-                          (for-each build child-ids))]
-                       [(eq? from-type 'product)
-                        (let ([child-ids (hashtable-ref/nodef (spn->edges spn) from-id)])
-                          (add-eqn! (if (= (length child-ids) 1)
-                                        `(= ,(tid from-id) ,@(map tid child-ids))
-                                        `(= ,(tid from-id) (+ ,@(map tid child-ids)))))
-                          (for-each build child-ids))]
-                       [(eq? from-type 'indicator)
-                        (let ([ind-id (hashtable-ref/nodef (spn->indicator-ids spn) from-id)])
-                          (add-eqn! (if (eq? ind-id terminal-id)
-                                        `(= ,(tid from-id) LOG-PROB-1)
-                                        `(= ,(tid from-id) LOG-PROB-0))))]
-                       [(eq? from-type 'ref)
-                        (let ([subroot-id (hashtable-ref/nodef (spn->ref-subroot-ids spn) from-id)]
-                              [term-id (hashtable-ref/nodef (spn->ref-terminal-ids spn) from-id)])
-                          (add-eqn! `(= ,(tid from-id) ,(sym-append subroot-id term-id)))
-                          (build-equations spn term-id subroot-id add-eqn!))]
-                       [(eq? from-type 'prob)
-                        (add-eqn! `(= ,(tid from-id) ,(hashtable-ref/nodef (spn->probs spn) from-id)))]
-                       [else (error from-type "unknown node type")])))))))
+   (define seen-table (make-eq-hashtable))
+
+   (define (seen? key)
+     (hashtable-ref/default seen-table
+                            key
+                            (lambda ()
+                              (begin
+                                (hashtable-set! seen-table key #t)
+                                #f))))
+
+   (define (main)
+     (let* ([root-ids (get-root-ids spn)]
+            [eqns '()]
+            [add-eqn! (lambda (eqn) (set! eqns (cons eqn eqns)))])
+       (for-each (lambda (root-id)
+                   (let ([terminal-ids (hashtable-ref/nodef (spn->terminal-ids spn) root-id)])
+                     (for-each (lambda (terminal-id)
+                                 (build-equations spn terminal-id root-id add-eqn!))
+                               terminal-ids)))
+                 root-ids)
+       eqns))
+
+   (define (build-equations spn terminal-id root-id add-eqn!)
+     (if (seen? (sym-append terminal-id root-id))
+         '()
+         (let ([tid (lambda (id) (sym-append id terminal-id))])
+           (let build ([from-id root-id])
+             (if (seen? (sym-append terminal-id root-id from-id))
+                 #f
+                 (let ([from-type (hashtable-ref/nodef (spn->nodetypes spn) from-id)])
+                   (cond [(eq? from-type 'sum)
+                          (let ([child-ids (hashtable-ref/nodef (spn->edges spn) from-id)])
+                            (add-eqn! (if (= (length child-ids) 1)
+                                          `(= ,(tid from-id) ,@(map tid child-ids))
+                                          `(= ,(tid from-id) (logsumexp ,@(map tid child-ids)))))
+                            (for-each build child-ids))]
+                         [(eq? from-type 'root)
+                          (let ([child-ids (hashtable-ref/nodef (spn->edges spn) from-id)])
+                            (assert (= (length child-ids) 1))
+                            (add-eqn! `(= ,(tid from-id) ,@(map tid child-ids)))
+                            (for-each build child-ids))]
+                         [(eq? from-type 'product)
+                          (let ([child-ids (hashtable-ref/nodef (spn->edges spn) from-id)])
+                            (add-eqn! (if (= (length child-ids) 1)
+                                          `(= ,(tid from-id) ,@(map tid child-ids))
+                                          `(= ,(tid from-id) (+ ,@(map tid child-ids)))))
+                            (for-each build child-ids))]
+                         [(eq? from-type 'indicator)
+                          (let ([ind-id (hashtable-ref/nodef (spn->indicator-ids spn) from-id)])
+                            (add-eqn! (if (eq? ind-id terminal-id)
+                                          `(= ,(tid from-id) LOG-PROB-1)
+                                          `(= ,(tid from-id) LOG-PROB-0))))]
+                         [(eq? from-type 'ref)
+                          (let ([subroot-id (hashtable-ref/nodef (spn->ref-subroot-ids spn) from-id)]
+                                [term-id (hashtable-ref/nodef (spn->ref-terminal-ids spn) from-id)])
+                            (add-eqn! `(= ,(tid from-id) ,(sym-append subroot-id term-id)))
+                            (build-equations spn term-id subroot-id add-eqn!))]
+                         [(eq? from-type 'prob)
+                          (add-eqn! `(= ,(tid from-id) ,(hashtable-ref/nodef (spn->probs spn) from-id)))]
+                         [else (error from-type "unknown node type")])))))))
+
+   (main))
 
  (define (update-replacements! replacements eqns)
    (let ([new-eqns '()])
