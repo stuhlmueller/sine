@@ -40,7 +40,7 @@
 
  (define (make-subthunk recur)
    (lambda () (reset (make-terminal
-                      (apply-recur recur)))))
+                 (apply-recur recur)))))
 
  (define (make-callback source-id source-cont)
    (list 'callback source-id source-cont))
@@ -65,7 +65,7 @@
  (define (spn->terminal-id bundle) (list-ref bundle 12))
 
 
- (define (build-spn root-thunk)
+ (define/kw (build-spn root-thunk [max-spn-size :default +inf.0])
 
    ;; SPN data structure
 
@@ -80,6 +80,7 @@
    (define spn:terminal-ids (make-eq-hashtable))
    (define spn:recur-id (make-eq-hashtable))
    (define spn:terminal-id (make-eq-hashtable))
+   (define spn:size 0)
 
    (define (recur-id/new? recur)
      (let* ([spn-id (hashtable-ref spn:recur-id (recur-id recur) #f)])
@@ -139,6 +140,7 @@
    (define (make-spn-node! parent-id node-type)
      (let ([node-id (readable-gensym node-type)])
        ;; (pe "make-spn-node! " parent-id " -> " node-id "\n")
+       (set! spn:size (+ spn:size 1))
        (make-edge! parent-id node-id)
        (hashtable-set! spn:nodetypes node-id node-type)
        (store-root-id! node-id (get-root-id parent-id))
@@ -199,7 +201,7 @@
        (enqueue! queue
                  (make-task product-id
                             (lambda () ((callback->source-cont callback)
-                                        (terminal-id->value term-id)))))))
+                                   (terminal-id->value term-id)))))))
 
    (define (build-spn:terminal! last-id terminal)
      ;; (pe "build-spn:terminal! " last-id " " (&->string:n (terminal-value terminal) 30) "\n")
@@ -233,7 +235,8 @@
                        (get-terminal-ids subroot-id))))))
 
    (define (process-queue!)
-     (when (not (queue-empty? queue))
+     (when (and (not (queue-empty? queue))
+                (not (> spn:size max-spn-size)))
            (let ([task (dequeue! queue)])
              (task)
              (process-queue!))))

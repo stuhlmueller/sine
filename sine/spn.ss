@@ -37,10 +37,10 @@
            eqn-ids
            terminal-ids))))
 
- (define (marginalize expr)
+ (define/kw (marginalize expr [max-spn-size :default +inf.0])
    (let* ([interpreter-thunk (lambda () (coroutine-interpreter (with-preamble expr)))]
           [_ (verbose-pe "Building SPN...\n")]
-          [spn (opt-timeit verbose (build-spn interpreter-thunk))]
+          [spn (opt-timeit verbose (build-spn interpreter-thunk 'max-spn-size max-spn-size))]
           [_ (verbose-pe "SPN # edges: " (hashtable-size (spn->edges spn)) "\n")]
           [_ (verbose-pe "Building equations...\n")]
           [equations (spn-equations spn)]

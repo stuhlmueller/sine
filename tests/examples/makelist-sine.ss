@@ -17,8 +17,9 @@
      'done))
 
 (pe
- (marginalize
-  (get-makelist-expr (* 2 960))))
+ (time
+  (marginalize
+   (get-makelist-expr 100000))))
 
 
 
