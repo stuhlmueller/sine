@@ -18,23 +18,46 @@
                           (apply (g g) args))))])
             (g g))))
 
+      (define (cache proc)
+        (proc))
+
       (define nfqp-query
+        (lambda (nfqp)
+          (cache
+           (let ([val (nfqp)])
+             (if (car val) ;; test is first
+                 ((cdr val))
+                 (nfqp-query nfqp))))))
+
+      (define nfqp-query/nocache
         (lambda (nfqp)
           (let ([val (nfqp)])
             (if (car val) ;; test is first
                 ((cdr val))
-                (nfqp-query nfqp)))))
+                (nfqp-query/nocache nfqp)))))
 
       (define repeat
         (lambda (N proc)
           (if (= N 0) '() (cons (proc) (repeat (- N 1) proc)))))
 
-      (define map
+      (define single-map
         (lambda (proc lst)
           (if (null? lst)
               '()
-              (cons (proc (car lst))
-                    (map proc (cdr lst))))))
+              (pair (proc (first lst))
+                    (single-map proc (rest lst))))))
+
+      (define multi-map
+        (lambda (proc lsts) ;;takes list of lists and proc of that many arguments.
+          (if (null? (first lsts))
+              '()
+              (pair (apply proc (single-map first lsts))
+                    (multi-map proc (single-map rest lsts))))))
+
+      (define (map proc . lsts)
+        (if (null? (rest lsts))
+            (single-map proc (first lsts))
+            (multi-map proc lsts)))
 
       ;; okmij.org/ftp/Computation/fixed-point-combinators.html
       (define (Y* . fl)
@@ -81,9 +104,6 @@
 
       (define (sum-repeat proc n)
         (%sum-repeat proc n 0))
-
-      (define (cache proc)
-        (proc))
 
       (define (nflip p)
         (if (flip p) 1 0))

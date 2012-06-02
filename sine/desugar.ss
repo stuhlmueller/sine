@@ -122,16 +122,19 @@
          (def-body (rest (rest expr))))
      `(define ,def-var (lambda ,def-params ,@def-body))))
 
- (define (query? expr)
-   (tagged-list? expr 'query))
+ (define (query/cache? expr)
+   (tagged-list? expr 'query/cache))
 
  (define (rejection-query? expr)
    (tagged-list? expr 'rejection-query))
 
- (define (desugar-query expr)
+ (define (query/nocache? expr)
+   (tagged-list? expr 'query/nocache))
+
+ (define (desugar-query expr query-name)
    (let ([condition-expr (last expr)]
          [query-expr (list-ref expr (- (length expr) 2))])
-     `(nfqp-query
+     `(,query-name
        (lambda () (begin ,@(drop-right (rest expr) 2)
                     (cons ,condition-expr
                           (lambda () ,query-expr)))))))
@@ -164,8 +167,9 @@
  (register-sugar! named-let? named-let->lambda)
  (register-sugar! case? desugar-case)
  (register-sugar! cond? desugar-cond)
- (register-sugar! query? desugar-query)
- (register-sugar! rejection-query? desugar-query)
+ (register-sugar! query/cache? (lambda (expr) (desugar-query expr 'nfqp-query)))
+ (register-sugar! rejection-query? (lambda (expr) (desugar-query expr 'nfqp-query)))
+ (register-sugar! query/nocache? (lambda (expr) (desugar-query expr 'nfqp-query/nocache)))
  (register-sugar! begin-defines? desugar-begin-defines)
  (register-sugar! empty-begin? desugar-empty-begin)
  (register-sugar! define-fn? desugar-define-fn)

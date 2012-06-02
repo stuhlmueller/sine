@@ -8,8 +8,6 @@
 (define scalar-implicature-expr
   '(begin
 
-     (define uniform-draw car)
-
      (define (all-p state) (all state))
      (define (some-p state) (any state))
      (define (none-p state) (not (some-p state)))
@@ -36,7 +34,7 @@
      (define listener*
        (lambda (%listener %speaker)
          (lambda (speaker-access sentence depth)
-           (rejection-query
+           (query/cache
             (define state (state-prior))
             state
             (if (= 0 depth)
@@ -48,7 +46,7 @@
      (define speaker*
        (lambda (%listener %speaker)
          (lambda (access state depth)
-           (rejection-query
+           (query/cache
             (define s (sentence-prior))
             s
             (equal? (belief state access)
@@ -63,10 +61,10 @@
      (define (num-true state)
        (sum (map (lambda (x) (if x 1 0)) state)))
 
-     (num-true (listener '(#t #t #t) some-p 1))
+     (num-true (listener '(#t #t #t) some-p 6))
 
      ))
 
-(let ([marginals (log-marginal->marginal (time (marginalize scalar-implicature-expr 'max-spn-size 50)))])
+(let ([marginals (log-marginal->marginal (time (marginalize scalar-implicature-expr 'max-spn-size 100000)))])
   (for-each pen marginals)
   (pen "sum: " (sum-of-marginals marginals)))
