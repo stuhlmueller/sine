@@ -51,10 +51,12 @@
             [eqns '()]
             [add-eqn! (lambda (eqn) (set! eqns (cons eqn eqns)))])
        (for-each (lambda (root-id)
-                   (let ([terminal-ids (hashtable-ref/nodef (spn->terminal-ids spn) root-id)])
-                     (for-each (lambda (terminal-id)
-                                 (build-equations spn terminal-id root-id add-eqn!))
-                               terminal-ids)))
+                   (let ([terminal-ids (hashtable-ref (spn->terminal-ids spn) root-id #f)])
+                     (if (not terminal-ids)
+                         (pen "no terminals for " root-id)
+                         (for-each (lambda (terminal-id)
+                                     (build-equations spn terminal-id root-id add-eqn!))
+                                   terminal-ids))))
                  root-ids)
        eqns))
 

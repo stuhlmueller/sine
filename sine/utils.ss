@@ -5,6 +5,7 @@
  (sine utils)
 
  (export log-marginal->marginal
+         sum-of-marginals
          vector-sum
          apply-recur
          normalize-vector)
@@ -18,6 +19,9 @@
  (define (log-marginal->marginal marginal)
    (alist-map (lambda (v p) (cons v (exp p)))
               marginal))
+
+ (define (sum-of-marginals marginals)
+   (sum (map cdr marginals)))
 
  (define (vector-sum vec)
    (let ([total 0])

@@ -57,4 +57,6 @@
 
      ))
 
-(for-each pen (log-marginal->marginal (time (marginalize scalar-implicature-expr))))
+(let ([marginals (log-marginal->marginal (time (marginalize scalar-implicature-expr 'max-spn-size 50)))])
+  (for-each pen marginals)
+  (pen "sum: " (sum-of-marginals marginals)))

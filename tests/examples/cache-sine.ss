@@ -43,7 +43,7 @@
 (for-each pen (log-marginal->marginal (time (marginalize cache-expr))))
 
 (pen "self-recursion, no cache:")
-(for-each pen (log-marginal->marginal (time (marginalize nocache-recursion-expr 'max-spn-size 100))))
+(for-each pen (log-marginal->marginal (time (marginalize nocache-recursion-expr 'max-spn-size 30))))
 
 (pen "self-recursion, cache:")
 (for-each pen (log-marginal->marginal (time (marginalize cache-recursion-expr))))

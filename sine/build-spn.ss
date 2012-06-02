@@ -22,6 +22,7 @@
          (scheme-tools srfi-compat :43)
          (scheme-tools queue)
          (scheme-tools debug)
+         (scheme-tools math)
          (scheme-tools)
          (sine utils)
          (sine hashtable)
@@ -140,7 +141,6 @@
    (define (make-spn-node! parent-id node-type)
      (let ([node-id (readable-gensym node-type)])
        ;; (pe "make-spn-node! " parent-id " -> " node-id "\n")
-       (set! spn:size (+ spn:size 1))
        (make-edge! parent-id node-id)
        (hashtable-set! spn:nodetypes node-id node-type)
        (store-root-id! node-id (get-root-id parent-id))
@@ -178,11 +178,14 @@
 
    (define (make-task last-id thunk)
      (lambda ()
-       (let ([val (thunk)])
-         (cond [(xrp? val) (build-spn:xrp! last-id val)]
-               [(recur? val) (build-spn:recur! last-id val)]
-               [(terminal? val) (build-spn:terminal! last-id val)]
-               [else (error val "build-spn: unknown object type")]))))
+       (if (> spn:size max-spn-size)
+           (make-prob-node! last-id LOG-PROB-0)
+           (let ([val (thunk)])
+             (set! spn:size (+ spn:size 1))
+             (cond [(xrp? val) (build-spn:xrp! last-id val)]
+                   [(recur? val) (build-spn:recur! last-id val)]
+                   [(terminal? val) (build-spn:terminal! last-id val)]
+                   [else (error val "build-spn: unknown object type")])))))
 
    (define (build-spn:xrp! last-id xrp)
      ;; (pe "build-spn:xrp! " last-id " " (xrp-probs xrp) "\n")
@@ -235,8 +238,7 @@
                        (get-terminal-ids subroot-id))))))
 
    (define (process-queue!)
-     (when (and (not (queue-empty? queue))
-                (not (> spn:size max-spn-size)))
+     (when (not (queue-empty? queue))
            (let ([task (dequeue! queue)])
              (task)
              (process-queue!))))
