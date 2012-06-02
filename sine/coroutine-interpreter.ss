@@ -38,10 +38,8 @@
  (define-record-type terminal
    (fields value))
 
- (define (coroutine-source p)
-   (shift f (make-xrp f (vector (compress-boolean #t)
-                                (compress-boolean #f))
-                      (vector (log p) (log (- 1.0 p))))))
+ (define (coroutine-source vs logps)
+   (shift f (make-xrp f vs logps)))
 
  (define (coroutine-recur expr env)
    (if (syntax:cache? expr)
