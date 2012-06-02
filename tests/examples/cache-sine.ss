@@ -17,8 +17,33 @@
        (cache (all (list (flip) (flip) (flip)))))
      (and (foo) (foo) (foo))))
 
-(pen "no cache:")
+(define nocache-recursion-expr
+  '(begin
+     (define foo
+       (lambda ()
+         (if (flip)
+             (not (foo))
+             true)))
+     (foo)))
+
+(define cache-recursion-expr
+  '(begin
+     (define foo
+       (lambda ()
+         (cache
+          (if (flip)
+              (not (foo))
+              true))))
+     (foo)))
+
+(pen "no self-recursion, no cache:")
 (for-each pen (log-marginal->marginal (time (marginalize nocache-expr))))
 
-(pen "cache:")
+(pen "no self-recursion, cache:")
 (for-each pen (log-marginal->marginal (time (marginalize cache-expr))))
+
+(pen "self-recursion, no cache:")
+(for-each pen (log-marginal->marginal (time (marginalize nocache-recursion-expr 'max-spn-size 100))))
+
+(pen "self-recursion, cache:")
+(for-each pen (log-marginal->marginal (time (marginalize cache-recursion-expr))))
