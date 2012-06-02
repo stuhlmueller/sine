@@ -45,6 +45,8 @@
          &not
          &null?
          &null
+         &true
+         &false
          &or
          &pair?
          &symbol?
@@ -384,5 +386,9 @@
                (eq? (&expand-symbol c) sym)))))
 
  (define &null (compress-null '()))
+
+ (define &true (compress-boolean #t))
+
+ (define &false (compress-boolean #f))
 
  )
