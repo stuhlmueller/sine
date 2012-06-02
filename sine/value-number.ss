@@ -151,6 +151,7 @@
                           flat-obj
                           (lambda ()
                             (let ([id (readable-gensym)])
+                              (hashtable-set! (number-store) flat-obj id)
                               (hashtable-set! (obj-store) id flat-obj)
                               id))))
 
@@ -184,6 +185,7 @@
                           proc
                           (lambda ()
                             (let ([id (sym-append '&proc name)])
+                              (hashtable-set! (number-store) proc id)
                               (hashtable-set! (obj-store) id proc)
                               id))))
 
@@ -377,7 +379,9 @@
 
  (define (&tagged-list? n sym)
    (and (&pair? n)
-        (eq? (&expand-symbol (&car n)) sym)))
+        (let ([c (&car n)])
+          (and (&symbol? c)
+               (eq? (&expand-symbol c) sym)))))
 
  (define &null (compress-null '()))
 
