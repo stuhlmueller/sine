@@ -17,6 +17,7 @@
          (scheme-tools queue)
          (scheme-tools math)
          (scheme-tools hash)
+         (scheme-tools srfi-compat :43)
          (scheme-tools srfi-compat :1))
 
 
@@ -59,9 +60,10 @@
    (when (and (xrp-cont? obj)
               (not (> xrp-count xrp-count-limit)))
          (set! xrp-count (+ xrp-count 1))
-         (for-each (lambda (v p) (enqueue! queue (lambda () (store-edge! obj ((xrp-cont-proc obj) v) p))))
-                   (xrp-cont-vals obj)
-                   (xrp-cont-probs obj)))
+         (vector-for-each
+          (lambda (v p) (enqueue! queue (lambda () (store-edge! obj ((xrp-cont-proc obj) v) p))))
+          (xrp-cont-vals obj)
+          (xrp-cont-probs obj)))
    obj)
 
  (define (store-edge! from to p)
@@ -93,10 +95,10 @@
                        children))))
      marginals))
 
- (define (enumeration-source p)
+ (define (enumeration-source vs logps)
    (shift f (handler (make-xrp-cont f
-                                    (map compress-boolean (list #t #f))
-                                    (list (log p) (log (- 1 p)))))))
+                                    vs
+                                    (&expand-recursive logps)))))
 
  (define (process-queue!)
    (if (queue-empty? queue)
