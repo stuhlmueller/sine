@@ -18,12 +18,6 @@
         (sine value-number)
         (sine coroutine-id))
 
-(define test-expr
-  '(begin
-     (let ([y (flip)]
-           [x (flip)])
-       ((lambda () (if x true false))))))
-
 (define counter
   (get-counter))
 
@@ -60,7 +54,7 @@
       'root
       (string-append (subroot-number node-ids node)
                      " "
-                     (recur-state->string (id->object (sym+num->num node))
+                     (recur-state->string node ;; (id->object (sym+num->num node))
                                           'num-chars 10
                                           'show-env #t))))
 
@@ -77,8 +71,8 @@
           [(eq? node-type 'prob) (prob-info spn node-ids node)]
           [else ""])))
 
-(define (main)
-  (let* ([interpreter-thunk (lambda () (coroutine-interpreter (with-preamble test-expr)))]
+(define (make-tgf expr)
+  (let* ([interpreter-thunk (lambda () (coroutine-interpreter (with-preamble expr)))]
          [spn (build-spn interpreter-thunk)]
          [equations (spn-equations spn)]
          [solutions (opt-timeit verbose (solve-equations equations))]
@@ -103,4 +97,22 @@
                           (spn->edges spn))
       )))
 
-(main)
+(define expr
+  '(query/cache
+    (define x (flip))
+    (define y (flip))
+    x
+    (or x y)))
+
+(define game-expr
+  '(begin
+     (define game
+       (lambda (player)
+         (cache
+          (if (flip .6)
+              (not (game (not player)))
+              (if player
+                  (flip .2) (flip .7))))))
+     (game true)))
+
+(make-tgf game-expr)
