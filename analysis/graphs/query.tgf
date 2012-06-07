@@ -1,0 +1,28 @@
+1 Ind true
+2 X
+3 +
+4 X
+5 Ind false
+6 Ind true
+7 Ind true
+8 (query ...)
+9 Ind false
+10 +
+11 Ref (query ...) => true
+12 Ref (query ...) => false
+13 +
+14 +
+#
+8 14
+13 2
+13 4
+14 10
+14 3
+2 6
+2 11
+4 9
+4 12
+10 13 0.5
+10 5 0.5
+3 7 0.5
+3 1 0.5
