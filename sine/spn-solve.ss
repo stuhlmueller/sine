@@ -11,6 +11,7 @@
 
  (import (rnrs)
          (sine hashtable)
+         (sine spn-equations)
          (scheme-tools watcher)
          (scheme-tools math iterate)
          (scheme-tools graph scsh-components)
@@ -84,7 +85,7 @@
      (let ([components (reverse (scsh-strongly-connected-components scsh-graph))]
            [solutions (make-eq-hashtable)])
        (for-each (lambda (component)
-                   (let* ([component-equations (get-component-equations eqn-table component solutions)]
+                   (let* ([component-equations (simplify-equations (get-component-equations eqn-table component solutions))]
                           [new-solutions (iterate-with-message component-equations)])
                      (for-each (lambda (binding)
                                  (hashtable-set!/assert-consistent solutions
