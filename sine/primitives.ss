@@ -33,6 +33,7 @@
          (list 'not &not)
          (list 'or &or)
          (list 'and &and)
+         (list 'eq? &eq?) ;; eq? == equal? in compressed space
          (list 'equal? &eq?) ;; eq? == equal? in compressed space
          (list '< &<)
          (list '> &>)
@@ -55,13 +56,20 @@
      (source (list->vector lst)
              (make-vector len (- (log len))))))
 
+ (define (&multinomial source &vs &ps)
+   (let* ([ps (&expand-recursive &ps)]
+          [vs (&expand-list &vs)])
+     (source (list->vector vs)
+             (list->vector (map log ps)))))
+
  (define stochastic-primitive-procedures
    (list (list 'flip &flip)
-         (list 'uniform-draw &uniform-draw)))
+         (list 'uniform-draw &uniform-draw)
+         (list 'multinomial &multinomial)))
 
  (define primitive-constants
-   (list (list 'true (compress-boolean #t))
-         (list 'false (compress-boolean #f))))
+   (list (list 'true &true)
+         (list 'false &false)))
 
  )
 
