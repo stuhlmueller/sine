@@ -28,11 +28,11 @@
        root-ids)))
 
  (define (spn-equations spn)
-   (let ([eqns (opt-timeit verbose (build-all-equations spn))])
+   (let-values ([(eqns root-terminal-vars) (opt-timeit verbose (build-all-equations spn))])
      (when verbose (pe "Equations: " (length eqns) "\n"))
      (let ([simplified-eqns (opt-timeit verbose (simplify-equations eqns))])
        (when verbose (pe "Simplified equations: " (length simplified-eqns) "\n"))
-       simplified-eqns)))
+       (values simplified-eqns root-terminal-vars))))
 
  (define (build-all-equations spn)
 
@@ -58,7 +58,10 @@
                                      (build-equations spn terminal-id root-id add-eqn!))
                                    terminal-ids))))
                  root-ids)
-       eqns))
+       (let ([root-terminal-vars (map (lambda (t-id) (joint-id 'root t-id))
+                                      (hashtable-ref (spn->terminal-ids spn) 'root '()))])
+         (values eqns
+                 root-terminal-vars))))
 
    (define (build-equations spn terminal-id root-id add-eqn!)
      (if (seen? (sym-append terminal-id root-id))
