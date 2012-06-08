@@ -87,7 +87,7 @@
      (let ([components (reverse (opt-timeit verbose (scsh-strongly-connected-components scsh-graph)))]
            [solutions (make-eq-hashtable)])
        (for-each (lambda (component)
-                   (let* ([component-equations (simplify-equations (get-component-equations eqn-table component solutions))]
+                   (let* ([component-equations (get-component-equations eqn-table component solutions)]
                           [new-solutions (iterate-with-message component-equations)])
                      (for-each (lambda (binding)
                                  (hashtable-set!/assert-consistent solutions
