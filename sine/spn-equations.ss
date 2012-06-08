@@ -46,6 +46,9 @@
                                 (hashtable-set! seen-table key #t)
                                 #f))))
 
+   (define (joint-id . ids)
+     (string->symbol (apply string-append (map symbol->string ids))))
+
    (define (main)
      (let* ([root-ids (get-root-ids spn)]
             [eqns '()]
@@ -64,11 +67,11 @@
                  root-terminal-vars))))
 
    (define (build-equations spn terminal-id root-id add-eqn!)
-     (if (seen? (sym-append terminal-id root-id))
+     (if (seen? (joint-id root-id terminal-id))
          '()
-         (let ([tid (lambda (id) (sym-append id terminal-id))])
+         (let ([tid (lambda (id) (joint-id id terminal-id))])
            (let build ([from-id root-id])
-             (if (seen? (sym-append terminal-id root-id from-id))
+             (if (seen? (joint-id root-id terminal-id from-id))
                  #f
                  (let ([from-type (hashtable-ref/nodef (spn->nodetypes spn) from-id)])
                    (cond [(eq? from-type 'sum)
@@ -96,7 +99,7 @@
                          [(eq? from-type 'ref)
                           (let ([subroot-id (hashtable-ref/nodef (spn->ref-subroot-ids spn) from-id)]
                                 [term-id (hashtable-ref/nodef (spn->ref-terminal-ids spn) from-id)])
-                            (add-eqn! `(= ,(tid from-id) ,(sym-append subroot-id term-id)))
+                            (add-eqn! `(= ,(tid from-id) ,(joint-id subroot-id term-id)))
                             (build-equations spn term-id subroot-id add-eqn!))]
                          [(eq? from-type 'prob)
                           (add-eqn! `(= ,(tid from-id) ,(hashtable-ref/nodef (spn->probs spn) from-id)))]
