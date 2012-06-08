@@ -12,6 +12,8 @@
  (import (rnrs)
          (sine hashtable)
          (sine spn-equations)
+         (sine settings)
+         (scheme-tools macros)
          (scheme-tools watcher)
          (scheme-tools math iterate)
          (scheme-tools graph scsh-components)
@@ -81,8 +83,8 @@
              equations-2)))
 
  (define (solve-equations eqns)
-   (let-values ([(scsh-graph eqn-table) (equations->scsh-graph eqns)])
-     (let ([components (reverse (scsh-strongly-connected-components scsh-graph))]
+   (let-values ([(scsh-graph eqn-table) (opt-timeit verbose (equations->scsh-graph eqns))])
+     (let ([components (reverse (opt-timeit verbose (scsh-strongly-connected-components scsh-graph)))]
            [solutions (make-eq-hashtable)])
        (for-each (lambda (component)
                    (let* ([component-equations (simplify-equations (get-component-equations eqn-table component solutions))]
