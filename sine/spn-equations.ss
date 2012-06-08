@@ -131,6 +131,12 @@
                      (outer-loop eqns-4 #f)
                      eqns-4))))))))
 
+ (define (special-symbol? s)
+   (or (eq? s 'logsumexp)
+       (eq? s '+)
+       (eq? s 'LOG-PROB-0)
+       (eq? s 'LOG-PROB-1)))
+
  (define (replace-all eqns replacements)
    (let ([changed #f])
      (define (%replace-all eqn)
@@ -145,7 +151,7 @@
            (set! changed #t)
            (if (null? remainder)
                'LOG-PROB-0
-               `(logsumexp ,@remainder)))]
+               `(logsumexp ,@(map %replace-all remainder))))]
 
         [(and (list? eqn)
               (> (length eqn) 1)
@@ -156,7 +162,7 @@
            (set! changed #t)
            (if (null? remainder)
                'LOG-PROB-1
-               `(+ ,@remainder)))]
+               `(+ ,@(map %replace-all remainder))))]
 
         [(and (list? eqn)
               (> (length eqn) 1)
@@ -172,13 +178,18 @@
                   (eq? (first eqn) 'logsumexp)))
          (begin
            (set! changed #t)
-           (second eqn))]
+           (%replace-all (second eqn)))]
 
-        [(list? eqn) (map (lambda (elt) (%replace-all elt)) eqn)]
-        [(symbol? eqn) (let ([v (hashtable-ref replacements eqn eqn)])
-                         (when (not (equal? v eqn))
-                               (set! changed #t))
-                         v)]
+        [(list? eqn)
+         (map (lambda (elt) (%replace-all elt)) eqn)]
+
+        [(and (symbol? eqn)
+              (not (special-symbol? eqn)))
+         (let ([v (hashtable-ref replacements eqn eqn)])
+           (when (not (equal? v eqn))
+                 (set! changed #t))
+           v)]
+
         [else eqn]))
      (let ([new-eqns (map (lambda (eqn)
                             `(= ,(second eqn)
