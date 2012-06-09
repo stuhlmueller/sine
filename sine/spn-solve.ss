@@ -16,6 +16,7 @@
          (scheme-tools macros)
          (scheme-tools watcher)
          (scheme-tools math iterate)
+         (scheme-tools math newton)
          (scheme-tools graph scsh-components)
          (scheme-tools srfi-compat :1)
          (scheme-tools))
@@ -55,11 +56,14 @@
      (values scsh-graph eqn-table)))
 
  (define (iterate-with-message equations)
-   (let ([iterator-env (environment '(rnrs) '(scheme-tools math))])
-     (let-values ([(solutions final-delta) (iterate/eqns equations 0.0 'env iterator-env)])
-       (when (not (= final-delta 0.0))
-             (pe "fixed-point iterator: final delta " final-delta "\n"))
-       solutions)))
+   (let-values ([(solutions final-delta) (iterate/eqns equations 0.0)])
+     (if (not (= final-delta 0.0))
+         (begin
+           (if verbose
+               (pen "fixed-point iterator: final delta " final-delta " -- trying newton...")
+               (pe "."))
+           (newton equations))
+         solutions)))
 
  (define (unique objects)
    (let ([seen? (make-watcher)])
