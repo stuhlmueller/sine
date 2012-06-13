@@ -13,9 +13,9 @@
          lookup-variable-id)
 
  (import (rnrs)
-         (sine value-number)
+         (scheme-tools srfi-compat :1)
          (scheme-tools srfi-compat :43)
-         (scheme-tools srfi-compat :1))
+         (scheme-tools value-number))
 
 
  ;; --------------------------------------------------------------------

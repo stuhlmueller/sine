@@ -21,11 +21,11 @@
          terminal?)
 
  (import (rnrs)
+         (scheme-tools value-number)
          (scheme-tools)
-         (sine syntax)
+         (sine delimcc-simple-r6rs)
          (sine interpreter)
-         (sine value-number)
-         (sine delimcc-simple-r6rs))
+         (sine syntax))
 
  ;; Return at xrps and recursive calls
 

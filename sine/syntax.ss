@@ -29,14 +29,14 @@
          application-syntax->operands-syntax
          sexpr->syntax)
 
- (import (rnrs)
+ (import (only (scheme-tools) tagged-list? rest pair pretty-print pe)
+         (rnrs)
          (scheme-tools srfi-compat :1)
-         (only (scheme-tools) tagged-list? rest pair pretty-print pe)
-         (sine sexpr)
+         (scheme-tools value-number)
          (sine desugar)
          (sine desugar-Y)
-         (sine value-number)
-         (sine env-flat))
+         (sine env-flat)
+         (sine sexpr))
 
 
  ;; --------------------------------------------------------------------

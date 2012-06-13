@@ -11,14 +11,14 @@
  (export enumerate)
 
  (import (rnrs)
-         (sine delimcc-simple-r6rs)
-         (sine value-number)
-         (scheme-tools)
-         (scheme-tools queue)
-         (scheme-tools math)
          (scheme-tools hash)
+         (scheme-tools math)
+         (scheme-tools queue)
+         (scheme-tools srfi-compat :1)
          (scheme-tools srfi-compat :43)
-         (scheme-tools srfi-compat :1))
+         (scheme-tools value-number)
+         (scheme-tools)
+         (sine delimcc-simple-r6rs))
 
 
  ;; --------------------------------------------------------------------
@@ -91,7 +91,7 @@
                                                                  root
                                                                  LOG-PROB-0)))
              (for-each (lambda (child) (loop (car child)
-                                        (+ p (cdr child))))
+                                             (+ p (cdr child))))
                        children))))
      marginals))
 

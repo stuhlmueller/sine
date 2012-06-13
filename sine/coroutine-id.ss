@@ -11,10 +11,10 @@
          terminal-id->value)
 
  (import (rnrs)
-         (sine coroutine-interpreter)
-         (sine value-number)
          (scheme-tools object-id)
-         (scheme-tools))
+         (scheme-tools value-number)
+         (scheme-tools)
+         (sine coroutine-interpreter))
 
  (define (recur-id recur)
    (assert (recur? recur))

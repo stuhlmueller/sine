@@ -11,10 +11,10 @@
          normalize-vector)
 
  (import (rnrs)
-         (scheme-tools)
          (scheme-tools srfi-compat :43)
-         (sine coroutine-interpreter)
-         (sine value-number))
+         (scheme-tools value-number)
+         (scheme-tools)
+         (sine coroutine-interpreter))
 
  (define (log-marginal->marginal marginal)
    (alist-map (lambda (v p) (cons v (exp p)))

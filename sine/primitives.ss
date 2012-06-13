@@ -9,9 +9,9 @@
          primitive-constants)
 
  (import (rnrs)
-         (scheme-tools)
-         (sine value-number)
-         (scheme-tools srfi-compat :1))
+         (scheme-tools srfi-compat :1)
+         (scheme-tools value-number)
+         (scheme-tools))
 
  (define deterministic-primitive-procedures
    (list (list 'car &car)

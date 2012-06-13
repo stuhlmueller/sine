@@ -14,12 +14,13 @@
          show-marginal)
 
  (import (rnrs)
-         (scheme-tools)
+         (scheme-tools hashtable)
          (scheme-tools srfi-compat :1)
-         (sine syntax)
-         (sine coroutine-interpreter)
+         (scheme-tools value-number)
+         (scheme-tools)
          (sine coroutine-id)
-         (sine value-number))
+         (sine coroutine-interpreter)
+         (sine syntax))
 
  ;; --------------------------------------------------------------------
  ;; Debug tools
@@ -61,7 +62,7 @@
           `("{"
             ,@(alist-map (lambda (v p) (string-append (&->string:n v 30) ", "
                                                  (->string p) ";  "))
-                         (vector->list marginal))
+                         (hashtable->alist marginal))
             "}"
             )))
 

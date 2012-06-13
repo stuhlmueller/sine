@@ -27,7 +27,7 @@
          (sine syntax)
          (sine desugar)
          (sine primitives)
-         (sine value-number)
+         (scheme-tools value-number)
          (scheme-tools srfi-compat :1)
          (only (scheme-tools) true? false? rest pair tagged-list? compose pe)
          (only (scheme-tools math) random-real))
@@ -174,7 +174,7 @@
 
  (define (primitive-procedure-objects procs type-symbol)
    (map (lambda (proc) (&list (compress-symbol type-symbol)
-                         (compress-procedure (cadr proc) (car proc))))
+                              (compress-procedure (cadr proc) (car proc))))
         procs))
 
  (define (all-primitive-names)

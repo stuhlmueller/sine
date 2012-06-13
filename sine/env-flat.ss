@@ -14,10 +14,10 @@
          restrict-environment)
 
  (import (rnrs)
-         (sine value-number)
-         (scheme-tools)
+         (scheme-tools srfi-compat :1)
          (scheme-tools srfi-compat :43)
-         (scheme-tools srfi-compat :1))
+         (scheme-tools value-number)
+         (scheme-tools))
 
 
  ;; --------------------------------------------------------------------

@@ -6,18 +6,18 @@
 
  (export marginalize)
 
- (import (rnrs)
-         (scheme-tools)
-         (cosh components)
+ (import (cosh components)
          (cosh polymap)
+         (rnrs)
          (scheme-tools graph components)
          (scheme-tools graph utils)
-         (sine polygraph)
+         (scheme-tools srfi-compat :1)
+         (scheme-tools value-number)
+         (scheme-tools)
          (sine coroutine-id)
-         (sine value-number)
-         (sine preamble)
          (sine coroutine-interpreter)
-         (scheme-tools srfi-compat :1))
+         (sine polygraph)
+         (sine preamble))
 
  (define (marginalize expr)
    (let* ([interpreter-thunk (lambda () (coroutine-interpreter (with-preamble expr)))]

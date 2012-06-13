@@ -9,11 +9,11 @@
  (export enum-interpreter)
 
  (import (rnrs)
-         (sine shift-reset-enumerator)
+         (scheme-tools value-number)
+         (scheme-tools)
          (sine interpreter)
-         (sine value-number)
          (sine preamble)
-         (scheme-tools))
+         (sine shift-reset-enumerator))
 
  (define/kw (enum-interpreter expr [limit :default 10000])
    (let ([marginals

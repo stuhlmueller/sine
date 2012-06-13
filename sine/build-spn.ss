@@ -17,21 +17,21 @@
          spn->recur-id
          spn->terminal-id)
 
- (import (rnrs)
+ (import (only (scheme-tools) gensym)
+         (rnrs)
+         (scheme-tools debug)
+         (scheme-tools hashtable)
+         (scheme-tools math)
+         (scheme-tools queue)
          (scheme-tools srfi-compat :1)
          (scheme-tools srfi-compat :43)
-         (scheme-tools queue)
-         (scheme-tools debug)
-         (scheme-tools math)
+         (scheme-tools value-number)
          (scheme-tools)
-         (sine utils)
-         (sine hashtable)
-         (only (scheme-tools) gensym)
-         (sine coroutine-interpreter)
          (sine coroutine-id)
-         (sine value-number)
+         (sine coroutine-interpreter)
+         (sine delimcc-simple-r6rs)
          (sine syntax)
-         (sine delimcc-simple-r6rs))
+         (sine utils))
 
  (define counter
    (get-counter))
@@ -41,7 +41,7 @@
 
  (define (make-subthunk recur)
    (lambda () (reset (make-terminal
-                      (apply-recur recur)))))
+                 (apply-recur recur)))))
 
  (define (make-callback source-id source-cont)
    (list 'callback source-id source-cont))
