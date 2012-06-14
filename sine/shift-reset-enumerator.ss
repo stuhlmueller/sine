@@ -91,7 +91,7 @@
                                                                  root
                                                                  LOG-PROB-0)))
              (for-each (lambda (child) (loop (car child)
-                                             (+ p (cdr child))))
+                                        (+ p (cdr child))))
                        children))))
      marginals))
 

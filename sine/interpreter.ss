@@ -18,7 +18,7 @@
          interpreter
          sicp-interpreter
          default-source
-         make-default-recur)
+         make-default-subcall)
 
  (import (rename (rnrs)
                  (apply scheme-apply))
@@ -46,50 +46,50 @@
          [(syntax:application? syntax) eval-application]
          [else (error syntax "eval: unknown expression type")]))
 
- (define (eval syntax env recur source)
+ (define (eval syntax env subcall source)
    (let ([dispatch-fn (eval-dispatch-fn syntax)])
-     (dispatch-fn syntax env recur source)))
+     (dispatch-fn syntax env subcall source)))
 
- (define (eval-if syntax env recur source)
-   (if (true? (&expand-boolean (recur (if-syntax->if-predicate syntax) env)))
-       (recur (if-syntax->if-consequent syntax) env)
-       (recur (if-syntax->if-alternative syntax) env)))
+ (define (eval-if syntax env subcall source)
+   (if (true? (&expand-boolean (subcall (if-syntax->if-predicate syntax) env)))
+       (subcall (if-syntax->if-consequent syntax) env)
+       (subcall (if-syntax->if-alternative syntax) env)))
 
- (define (eval-cache syntax env recur source)
-   (recur (cache-syntax->content syntax) env))
+ (define (eval-cache syntax env subcall source)
+   (subcall (cache-syntax->content syntax) env))
 
- (define (eval-lambda syntax env recur source)
+ (define (eval-lambda syntax env subcall source)
    (make-procedure (lambda-syntax->lambda-parameters syntax)
                    (lambda-syntax->lambda-body syntax)
                    (restrict-environment (syntax->&free-vars syntax)
                                          env)))
 
- (define (eval-quoted syntax env recur source)
+ (define (eval-quoted syntax env subcall source)
    (quote-syntax->text-of-quotation syntax))
 
- (define (eval-variable syntax env recur source)
+ (define (eval-variable syntax env subcall source)
    (let [(closure-address (variable-syntax->lexical-address syntax))]
      (lookup-value-by-id closure-address env)))
 
- (define (eval-self-evaluating syntax env recur source)
+ (define (eval-self-evaluating syntax env subcall source)
    (self-evaluating-syntax->value syntax))
 
- (define (eval-application syntax env recur source)
-   (apply (recur (application-syntax->operator-syntax syntax) env)
-          (list-of-values (application-syntax->operands-syntax syntax) env recur)
-          recur
+ (define (eval-application syntax env subcall source)
+   (apply (subcall (application-syntax->operator-syntax syntax) env)
+          (list-of-values (application-syntax->operands-syntax syntax) env subcall)
+          subcall
           source))
 
- (define (list-of-values exps env recur)
+ (define (list-of-values exps env subcall)
    (if (null? exps)
        '()
-       (cons (recur (first exps) env)
-             (list-of-values (rest exps) env recur))))
+       (cons (subcall (first exps) env)
+             (list-of-values (rest exps) env subcall))))
 
- (define (eval-sequence exps env recur)
-   (cond ((null? (cdr exps)) (recur (first exps) env))
-         (else (recur (first exps) env)
-               (eval-sequence (rest exps) env recur))))
+ (define (eval-sequence exps env subcall)
+   (cond ((null? (cdr exps)) (subcall (first exps) env))
+         (else (subcall (first exps) env)
+               (eval-sequence (rest exps) env subcall))))
 
 
  ;; --------------------------------------------------------------------
@@ -109,9 +109,9 @@
                      "expanded: " (&expand-recursive procedure) "\n")
                  (error procedure "apply: unknown procedure type"))]))
 
- (define (apply procedure arguments recur source)
+ (define (apply procedure arguments subcall source)
    (let ([dispatch-fn (apply-dispatch-fn procedure)])
-     (dispatch-fn procedure arguments recur source)))
+     (dispatch-fn procedure arguments subcall source)))
 
  (define (bindings params vals)
    (cond [(null? params) (pair '() '())]
@@ -126,19 +126,19 @@
                      (pair (pair (first params) (first remainder))
                            (pair (first vals) (rest remainder)))))]))
 
- (define (apply-compound-procedure proc args recur source)
+ (define (apply-compound-procedure proc args subcall source)
    (let* ([binds (bindings (procedure-parameters proc) args)]
           [binding-vars (first binds)]
           [binding-vals (rest binds)])
-     (recur (procedure-body proc)
-            (extend-environment binding-vars
-                                binding-vals
-                                (procedure-environment proc)))))
+     (subcall (procedure-body proc)
+              (extend-environment binding-vars
+                                  binding-vals
+                                  (procedure-environment proc)))))
 
- (define (apply-apply proc args recur source)
+ (define (apply-apply proc args subcall source)
    (apply (car args)
           (&expand-list (cadr args))
-          recur source))
+          subcall source))
 
 
  ;; --------------------------------------------------------------------
@@ -194,7 +194,7 @@
  (define (deterministic-primitive-procedure? &proc)
    (&tagged-list? &proc 'primitive))
 
- (define (apply-deterministic-primitive-procedure &proc args recur source)
+ (define (apply-deterministic-primitive-procedure &proc args subcall source)
    (scheme-apply (primitive-implementation &proc)
                  args))
 
@@ -205,7 +205,7 @@
  (define (stochastic-primitive-procedure? &proc)
    (&tagged-list? &proc 'rand))
 
- (define (apply-stochastic-primitive-procedure &proc args recur source)
+ (define (apply-stochastic-primitive-procedure &proc args subcall source)
    (scheme-apply (primitive-implementation &proc)
                  (cons source args)))
 
@@ -221,20 +221,20 @@
  (define default-source
    (lambda (p) (< (random-real) p)))
 
- (define (make-default-recur source)
-   (letrec ([recur (lambda (syntax env)
-                     (begin
-                       (assert (syntax? syntax))
-                       (eval syntax env recur source)))])
-     recur))
+ (define (make-default-subcall source)
+   (letrec ([subcall (lambda (syntax env)
+                       (begin
+                         (assert (syntax? syntax))
+                         (eval syntax env subcall source)))])
+     subcall))
 
- (define (interpreter expr recur)
+ (define (interpreter expr subcall)
    (let ([env (setup-environment)])
-     (recur (sexpr->syntax expr env) env)))
+     (subcall (sexpr->syntax expr env) env)))
 
  (define (sicp-interpreter expr)
    (let ([env (setup-environment)]
-         [recur (make-default-recur default-source)])
-     (&expand-recursive (recur (sexpr->syntax (with-preamble expr) env) env))))
+         [subcall (make-default-subcall default-source)])
+     (&expand-recursive (subcall (sexpr->syntax (with-preamble expr) env) env))))
 
  )

@@ -38,7 +38,7 @@
                    (let ([node ((task->thunk task))])
                      (cond [(void? node) #f]
                            [(xrp? node) (build-graph:xrp! graph queue task node)]
-                           [(recur? node) (build-graph:recur! graph queue task node)]
+                           [(subcall? node) (build-graph:subcall! graph queue task node)]
                            [(terminal? node) (build-graph:terminal! graph queue task node)]
                            [else (error node "build-graph: unknown obj type")])))
              (loop))))))
@@ -65,16 +65,16 @@
                                             (enqueue! queue (terminal->task terminal-id)))
                                           (graph:ancestor-callbacks graph (task->last-id task))))))))
 
- (define (apply-recur recur)
-   (let ([syntax+env (&expand-pair (recur-state recur))])
-     (apply (recur-call recur)
+ (define (apply-subcall subcall)
+   (let ([syntax+env (&expand-pair (subcall-args subcall))])
+     (apply (subcall-proc subcall)
             (list (car syntax+env)
                   (cdr syntax+env)))))
 
- (define (build-graph:recur! graph queue task recur)
+ (define (build-graph:subcall! graph queue task subcall)
    (let* ([subthunk (lambda () (reset (make-terminal
-                                  (apply-recur recur))))]
-          [subroot-id (recur-id recur)]
+                                  (apply-subcall subcall))))]
+          [subroot-id (subcall-id subcall)]
           [subroot-is-new (graph:add/retrieve! graph subroot-id)]
           [seen? (make-watcher)]
           [terminal->task
@@ -82,7 +82,7 @@
              (when (not (seen? terminal-id))
                    (let ([value (terminal-id->value terminal-id)])
                      (make-task
-                      (lambda () ((recur-cont recur) value))
+                      (lambda () ((subcall-cont subcall) value))
                       (task->last-id task)
                       (plus/symbolic (make-score-ref subroot-id terminal-id)
                                      (task->link-weight task))

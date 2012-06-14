@@ -54,9 +54,9 @@
       'root
       (string-append (subroot-number node-ids node)
                      " "
-                     (recur-state->string node ;; (id->object (sym+num->num node))
-                                          'num-chars 10
-                                          'show-env #t))))
+                     (subcall-args->string node ;; (id->object (sym+num->num node))
+                                           'num-chars 10
+                                           'show-env #t))))
 
 (define (prob-info spn node-ids node)
   (hashtable-ref (spn->probs spn) node #f))

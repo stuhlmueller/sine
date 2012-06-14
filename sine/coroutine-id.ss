@@ -4,8 +4,8 @@
 
  (sine coroutine-id)
 
- (export recur-id
-         recur-id?
+ (export subcall-id
+         subcall-id?
          terminal-id
          terminal-id?
          terminal-id->value)
@@ -16,9 +16,9 @@
          (scheme-tools)
          (sine coroutine-interpreter))
 
- (define (recur-id recur)
-   (assert (recur? recur))
-   (recur-state recur))
+ (define (subcall-id subcall)
+   (assert (subcall? subcall))
+   (subcall-args subcall))
 
  (define (terminal-id terminal)
    (assert (terminal? terminal))
@@ -31,7 +31,7 @@
    (assert (symbol? id))
    id)
 
- (define (recur-id? obj)
+ (define (subcall-id? obj)
    (prefixed-symbol? obj 'rec))
 
  )

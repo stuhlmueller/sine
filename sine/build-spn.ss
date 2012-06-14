@@ -14,7 +14,7 @@
          spn->roots
          spn->callbacks
          spn->terminal-ids
-         spn->recur-id
+         spn->subcall-id
          spn->terminal-id)
 
  (import (only (scheme-tools) gensym)
@@ -39,9 +39,9 @@
  (define (readable-gensym sym)
    (sym+num (sym-append sym '-) (counter)))
 
- (define (make-subthunk recur)
+ (define (make-subthunk subcall)
    (lambda () (reset (make-terminal
-                 (apply-recur recur)))))
+                 (apply-subcall subcall)))))
 
  (define (make-callback source-id source-cont)
    (list 'callback source-id source-cont))
@@ -62,7 +62,7 @@
  (define (spn->roots bundle) (list-ref bundle 8))
  (define (spn->callbacks bundle) (list-ref bundle 9))
  (define (spn->terminal-ids bundle) (list-ref bundle 10))
- (define (spn->recur-id bundle) (list-ref bundle 11))
+ (define (spn->subcall-id bundle) (list-ref bundle 11))
  (define (spn->terminal-id bundle) (list-ref bundle 12))
 
 
@@ -79,21 +79,21 @@
    (define spn:roots (make-eq-hashtable))
    (define spn:callbacks (make-eq-hashtable))
    (define spn:terminal-ids (make-eq-hashtable))
-   (define spn:recur-id (make-eq-hashtable))
+   (define spn:subcall-id (make-eq-hashtable))
    (define spn:terminal-id (make-eq-hashtable))
    (define spn:size 0)
 
-   (define (recur-id/new? recur)
-     (let* ([spn-id (hashtable-ref spn:recur-id (recur-id recur) #f)])
+   (define (subcall-id/new? subcall)
+     (let* ([spn-id (hashtable-ref spn:subcall-id (subcall-id subcall) #f)])
        (if spn-id
-           (values (recur-id recur) #f)
+           (values (subcall-id subcall) #f)
 
            (begin
-             (hashtable-set! spn:recur-id (recur-id recur) (recur-id recur))
-             (values (recur-id recur) #t))
+             (hashtable-set! spn:subcall-id (subcall-id subcall) (subcall-id subcall))
+             (values (subcall-id subcall) #t))
 
            ;; (let ([new-id (gensym)])
-           ;;   (hashtable-set! spn:recur-id new-id (recur-id recur))
+           ;;   (hashtable-set! spn:subcall-id new-id (subcall-id subcall))
            ;;   (values new-id #t))
 
            )))
@@ -183,7 +183,7 @@
            (let ([val (thunk)])
              (set! spn:size (+ spn:size 1))
              (cond [(xrp? val) (build-spn:xrp! last-id val)]
-                   [(recur? val) (build-spn:recur! last-id val)]
+                   [(subcall? val) (build-spn:subcall! last-id val)]
                    [(terminal? val) (build-spn:terminal! last-id val)]
                    [else (error val "build-spn: unknown object type")])))))
 
@@ -223,16 +223,16 @@
        (hashtable-set! spn:callbacks subroot-id updated-callbacks)
        new-callback))
 
-   (define (build-spn:recur! last-id recur)
+   (define (build-spn:subcall! last-id subcall)
      (let-values ([(sum-id) (make-sum-node! last-id)]
-                  [(subroot-id subroot-new) (recur-id/new? recur)])
+                  [(subroot-id subroot-new) (subcall-id/new? subcall)])
        (let ([new-callback (store-callback! sum-id
-                                            (lambda (t) ((recur-cont recur) t))
+                                            (lambda (t) ((subcall-cont subcall) t))
                                             subroot-id)])
          (if subroot-new
              (begin
                (make-root-node! subroot-id)
-               (enqueue! queue (make-task subroot-id (make-subthunk recur))))
+               (enqueue! queue (make-task subroot-id (make-subthunk subcall))))
              (for-each (lambda (term-id)
                          (process-terminal subroot-id term-id new-callback))
                        (get-terminal-ids subroot-id))))))
@@ -256,7 +256,7 @@
                       spn:roots
                       spn:callbacks
                       spn:terminal-ids
-                      spn:recur-id
+                      spn:subcall-id
                       spn:terminal-id))
 
    (main))))

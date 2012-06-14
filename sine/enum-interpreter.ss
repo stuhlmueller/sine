@@ -19,7 +19,7 @@
    (let ([marginals
           (enumerate (lambda (source)
                        (interpreter (with-preamble expr)
-                                    (make-default-recur source)))
+                                    (make-default-subcall source)))
                      'limit limit)])
      (map (lambda (binding)
             (pair (&expand-recursive (car binding))

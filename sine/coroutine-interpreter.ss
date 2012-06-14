@@ -11,15 +11,15 @@
          xrp-vals
          xrp-probs
          xrp?
-         make-recur
-         recur-cont
-         recur-call
-         recur-state
-         recur?
+         make-subcall
+         subcall-cont
+         subcall-proc
+         subcall-args
+         subcall?
          make-terminal
          terminal-value
          terminal?
-         apply-recur)
+         apply-subcall)
 
  (import (rnrs)
          (scheme-tools value-number)
@@ -28,13 +28,13 @@
          (sine interpreter)
          (sine syntax))
 
- ;; Return at xrps and recursive calls
+ ;; Return at xrps and subcallsive calls
 
  (define-record-type xrp
    (fields cont vals probs))
 
- (define-record-type recur
-   (fields cont call state))
+ (define-record-type subcall
+   (fields cont proc args))
 
  (define-record-type terminal
    (fields value))
@@ -42,18 +42,18 @@
  (define (coroutine-source vs logps)
    (shift f (make-xrp f vs logps)))
 
- (define (coroutine-recur expr env)
+ (define (coroutine-subcall expr env)
    (if (syntax:application? expr) ;; (syntax:cache? expr)
-       (let ([g (lambda (ex en) (interpreter-eval ex en coroutine-recur coroutine-source))])
-         (shift f (make-recur f g (&cons expr env))))
-       (interpreter-eval expr env coroutine-recur coroutine-source)))
+       (let ([g (lambda (ex en) (interpreter-eval ex en coroutine-subcall coroutine-source))])
+         (shift f (make-subcall f g (&cons expr env))))
+       (interpreter-eval expr env coroutine-subcall coroutine-source)))
 
  (define (coroutine-interpreter expr)
-   (reset (make-terminal (interpreter expr coroutine-recur))))
+   (reset (make-terminal (interpreter expr coroutine-subcall))))
 
- (define (apply-recur recur)
-   (let ([syntax+env (&expand-pair (recur-state recur))])
-     (apply (recur-call recur)
+ (define (apply-subcall subcall)
+   (let ([syntax+env (&expand-pair (subcall-args subcall))])
+     (apply (subcall-proc subcall)
             (list (car syntax+env)
                   (cdr syntax+env)))))
 
@@ -61,10 +61,10 @@
 
  (define coroutine-source/xrp coroutine-source)
 
- (define (coroutine-recur/xrp expr env)
-   (interpreter-eval expr env coroutine-recur/xrp coroutine-source/xrp))
+ (define (coroutine-subcall/xrp expr env)
+   (interpreter-eval expr env coroutine-subcall/xrp coroutine-source/xrp))
 
  (define (coroutine-interpreter/xrp expr)
-   (reset (make-terminal (interpreter expr coroutine-recur/xrp))))
+   (reset (make-terminal (interpreter expr coroutine-subcall/xrp))))
 
  )

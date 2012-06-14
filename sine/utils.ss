@@ -7,7 +7,7 @@
  (export log-marginal->marginal
          sum-of-marginals
          vector-sum
-         apply-recur
+         apply-subcall
          normalize-vector)
 
  (import (rnrs)

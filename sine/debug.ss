@@ -7,8 +7,8 @@
  (export dist->string
          state->string
          stack->string
-         recur->string
-         recur-state->string
+         subcall->string
+         subcall-args->string
          show-stack
          show-slot
          slot->string
@@ -38,29 +38,29 @@
                          ps)))))
 
  (define (state->string state)
-   (cond [(recur? state) (recur->string state)]
+   (cond [(subcall? state) (subcall->string state)]
          [(xrp? state) "xrp"]
          [else (&->string:n state 20)]))
 
  (define (stack->string stack)
-   (string-append "[" (apply string-append (map (lambda (x) (string-append (->string x) " ")) (map recur-id stack))) "]"))
+   (string-append "[" (apply string-append (map (lambda (x) (string-append (->string x) " ")) (map subcall-id stack))) "]"))
 
- (define (recur->string recur)
-   (recur-state->string (recur-state recur)))
+ (define (subcall->string subcall)
+   (subcall-args->string (subcall-args subcall)))
 
- (define/kw (recur-state->string state [num-chars :default 80] [show-env :default #f])
-   (if (&pair? state)
-       (string-append (->string:n (syntax->original-expr (&car state)) num-chars)
+ (define/kw (subcall-args->string args [num-chars :default 80] [show-env :default #f])
+   (if (&pair? args)
+       (string-append (->string:n (syntax->original-expr (&car args)) num-chars)
                       " "
                       (if show-env
-                          (->string (vector-map car (&expand-recursive (&cdr state))))
+                          (->string (vector-map car (&expand-recursive (&cdr args))))
                           ""))
-       (->string:n (&expand-recursive state) num-chars)))
+       (->string:n (&expand-recursive args) num-chars)))
 
  (define (show-stack stack)
    (pe "stack:\n")
    (for-each (lambda (e i)
-               (pe "  " i ": " (recur->string e) "\n"))
+               (pe "  " i ": " (subcall->string e) "\n"))
              stack
              (reverse (iota (length stack))))
    (pe "\n"))
