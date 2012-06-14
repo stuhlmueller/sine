@@ -33,11 +33,5 @@
      (vector-map (lambda (x) (/ x s))
                  vec)))
 
- (define (apply-recur recur)
-   (let ([syntax+env (&expand-pair (recur-state recur))])
-     (apply (recur-call recur)
-            (list (car syntax+env)
-                  (cdr syntax+env)))))
-
  )
 

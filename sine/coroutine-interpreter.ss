@@ -18,7 +18,8 @@
          recur?
          make-terminal
          terminal-value
-         terminal?)
+         terminal?
+         apply-recur)
 
  (import (rnrs)
          (scheme-tools value-number)
@@ -42,14 +43,19 @@
    (shift f (make-xrp f vs logps)))
 
  (define (coroutine-recur expr env)
-   (if #f ;; (syntax:application? expr) ;; (syntax:cache? expr)
+   (if (syntax:application? expr) ;; (syntax:cache? expr)
        (let ([g (lambda (ex en) (interpreter-eval ex en coroutine-recur coroutine-source))])
          (shift f (make-recur f g (&cons expr env))))
-       (interpreter-eval expr env coroutine-recur coroutine-source)
-       ))
+       (interpreter-eval expr env coroutine-recur coroutine-source)))
 
  (define (coroutine-interpreter expr)
    (reset (make-terminal (interpreter expr coroutine-recur))))
+
+ (define (apply-recur recur)
+   (let ([syntax+env (&expand-pair (recur-state recur))])
+     (apply (recur-call recur)
+            (list (car syntax+env)
+                  (cdr syntax+env)))))
 
  ;; Return only at xrps
 
