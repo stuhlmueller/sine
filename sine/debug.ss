@@ -4,7 +4,10 @@
 
  (sine debug)
 
- (export recur->string
+ (export dist->string
+         state->string
+         stack->string
+         recur->string
          recur-state->string
          show-stack
          show-slot
@@ -14,6 +17,7 @@
          show-marginal)
 
  (import (rnrs)
+         (scheme-tools math distributions)
          (scheme-tools hashtable)
          (scheme-tools srfi-compat :1)
          (scheme-tools value-number)
@@ -24,6 +28,22 @@
 
  ;; --------------------------------------------------------------------
  ;; Debug tools
+
+ (define (dist->string dist)
+   (let-values ([(vals ps) (dist-vals&ps dist)])
+     (apply string-append
+            (vector->list
+             (vector-map (lambda (v p) (string-append (&->string:n v 30) ": " (number->string (exp p))))
+                         vals
+                         ps)))))
+
+ (define (state->string state)
+   (cond [(recur? state) (recur->string state)]
+         [(xrp? state) "xrp"]
+         [else (&->string:n state 20)]))
+
+ (define (stack->string stack)
+   (string-append "[" (apply string-append (map (lambda (x) (string-append (->string x) " ")) (map recur-id stack))) "]"))
 
  (define (recur->string recur)
    (recur-state->string (recur-state recur)))
