@@ -42,7 +42,9 @@
     (let ([new-p (logsumexp (get-dist-prob marginal v) p)])
       (assert (<= new-p LOG-PROB-1))
       (set-dist-prob! marginal v new-p)
-      (assert (<= (dist-mass marginal) LOG-PROB-1)))))
+      (assert* (<= (dist-mass marginal) (+ LOG-PROB-1 .1))
+               (lambda () (pen (exp (dist-mass marginal)))))
+      marginal)))
 
 (define global-marginals
   (make-eq-hashtable))
@@ -89,16 +91,18 @@
                   mass))
 
 (define (get-unexplored-mass parent-recur &slot vals)
-  (vector-map (lambda (&v) (log1minus (get-explored-mass (recur-state parent-recur)
-                                                    (&cons &v &slot))))
+  (vector-map (lambda (&v) (begin
+                        ;; (pen "get-unexplored-mass: " (recur-state parent-recur) " " (slot->string (&cons &v &slot)))
+                        (log1minus (get-explored-mass (recur-state parent-recur)
+                                                      (&cons &v &slot)))))
               vals))
 
 (define (update-explored-mass! &state &slot)
-  (pen "updating " &state " " (&expand-recursive &slot))
+  ;; (pen "updating " &state " " (slot->string &slot))
   (when (not (fully-explored? &state &slot))
         (let*-values ([(marginal) (get-local-marginal &state &slot)]
                       [(vals ps) (dist-vals&ps marginal)])
-          (pen "-- " &state " " (&expand-recursive &slot) " " vals " " ps)
+          ;; (pen "-- " &state " " (&expand-recursive &slot) " " vals " " ps)
           (when (not (= (vector-length vals) 0))
                 (let ([weighted-child-mass
                        (apply logsumexp
@@ -117,8 +121,12 @@
                          log-weights)))
 
 (define (reweight/unexplored state &slot dist)
-  (let ([unexplored-mass (get-unexplored-mass state &slot (dist-vals dist))])
-    (reweight-dist dist unexplored-mass)))
+  (if (eq? (recur-state state) 'top)
+      dist
+      (let ([unexplored-mass (get-unexplored-mass state &slot (dist-vals dist))])
+        ;; (pen "vals: " (dist-vals dist))
+        ;; (pen "unexplored-mass: " (vector-map exp unexplored-mass))
+        (reweight-dist dist unexplored-mass))))
 
 
 
@@ -132,18 +140,17 @@
   (let ([init-stack (list top-recur)]
         [init-slot &null]
         [init-score LOG-PROB-1])
-    (let-values ([(&value score &internal-slot) (sample state init-stack init-slot init-score)])
-      (update-explored-mass! (recur-state top-recur) &internal-slot)
-      (pen score)
+    (assert (recur? state))
+    (let-values ([(&value score &slot) (sample state init-stack init-slot init-score)])
       (&expand-recursive &value))))
 
 (define (sample state stack &slot score)
   (cond [(terminal? state) (sample-terminal state stack &slot score)]
         [(xrp? state) (sample-xrp state stack &slot score)]
+        [(recur? state) (sample-recur state stack &slot score)]
         [else (error state "unknown state type")]))
 
 (define (sample-terminal terminal stack &slot score)
-  (set-explored-mass! (recur-state (car stack)) &slot LOG-PROB-1)
   (values (terminal-value terminal)
           score
           &slot))
@@ -153,32 +160,66 @@
          [reweighted-dist (reweight/unexplored (car stack) &slot xrp-dist)]
          [value (sample-dist reweighted-dist)]
          [new-score (get-dist-prob xrp-dist value)])
-    (set-local-marginal! (recur-state (car stack)) &slot xrp-dist)
-    (pen "setting local marginal " (recur-state (car stack)) " " (&expand-recursive &slot))
     (sample ((xrp-cont xrp) value)
             stack
             (&cons value &slot)
             (+ score new-score))))
 
+(define (sample-recur recur stack &slot score)
+  (let* ([global-marginal (get-global-marginal (recur-state recur))]
+         [reweighted-marginal (reweight/unexplored (car stack) &slot global-marginal)]
+         [use-marginal (log-flip (dist-mass reweighted-marginal))])
+    (if use-marginal
+        (sample-recur-marginal recur stack &slot score global-marginal reweighted-marginal)
+        (sample-recur-internally recur stack &slot score))))
 
+(define (sample-recur-marginal recur stack &slot score global-marginal reweighted-marginal)
+  (let* ([value (sample-dist reweighted-marginal)]
+         [new-score (get-dist-prob global-marginal value)])
+    (sample ((recur-cont recur) value)
+            stack
+            (&cons value &slot)
+            (+ score new-score))))
+
+(define (sample-recur-internally recur stack &slot score)
+  (let-values ([(&value new-score &internal-slot)
+                (sample (reset (make-terminal (apply-recur recur)))
+                        (cons recur stack)
+                        &null
+                        LOG-PROB-1)])
+    (sample ((recur-cont recur) &value)
+            stack
+            (&cons &value &slot)
+            (+ score new-score))))
+
+
+;; --------------------------------------------------------------------
+;; Updating
+
+;; terminal:
+;; (set-explored-mass! (recur-state (car stack)) &slot LOG-PROB-1)
+
+;; recur:
+;; (set-local-marginal! (recur-state (car stack)) &slot global-marginal)
+
+;; xrp:
+;; (set-local-marginal! (recur-state (car stack)) &slot xrp-dist)
+
+;; internal recur:
+;; (update-explored-mass! (recur-state recur) &internal-slot)
+;; (let ([new-global-marginal (increment-global-marginal! (recur-state recur) &value new-score)])
+;;   (set-local-marginal! (recur-state (car stack)) &slot new-global-marginal))
 
 ;; --------------------------------------------------------------------
 ;; Test
 
 (define (test)
-  (let ([expr '(list (flip .99) (flip .99))])
-    (pe (apply string-append (make-list 68 "-")))
-    (pe "\nOriginal expr:\n")
-    (pretty-print expr)
-    (pe "\n")
-    (pe "Desugared expr:\n")
-    (pretty-print (desugar-all expr))
-    (pe "\n")
+  (let ([expr '(cache (list (flip .6) (flip .6)))])
     (let ([v (sample-top (coroutine-interpreter expr))])
-      (pe v "\n\n")
-      (pe "Explored mass:\n")
-      (hashtable-for-each (lambda (k v) (pen (&expand-recursive k) ": " (exp v))) explored-mass-table)
-      (pe "\n")
+      (pen " " v)
+      ;; (pe "\nExplored mass:\n")
+      ;; (hashtable-for-each (lambda (k v) (pen (&->string:n k 30) ": " (exp v))) explored-mass-table)
+      ;; (pe "\n\n")
       v)))
 
-(display (repeat 4 test))
+(display (repeat 40 test))
