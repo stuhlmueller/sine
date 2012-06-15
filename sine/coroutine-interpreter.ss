@@ -11,15 +11,15 @@
          xrp-vals
          xrp-probs
          xrp?
-         make-subcall
          subcall-cont
          subcall-proc
          subcall-args
          subcall?
+         make-subcall
+         apply-subcall
          make-terminal
          terminal-value
-         terminal?
-         apply-subcall)
+         terminal?)
 
  (import (rnrs)
          (scheme-tools value-number)
