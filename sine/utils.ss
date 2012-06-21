@@ -8,11 +8,16 @@
          sum-of-marginals
          vector-sum
          apply-subcall
-         normalize-vector)
+         normalize-vector
+         dist-diff
+         sample-discrete/log)
 
  (import (rnrs)
+         (scheme-tools srfi-compat :1)
          (scheme-tools srfi-compat :43)
          (scheme-tools value-number)
+         (scheme-tools math distributions)
+         (scheme-tools math)
          (scheme-tools)
          (sine coroutine-interpreter))
 
@@ -32,6 +37,17 @@
    (let ([s (vector-sum vec)])
      (vector-map (lambda (x) (/ x s))
                  vec)))
+
+ (define (dist-diff dist sub-dist)
+   (let-values ([(vals ps) (dist-vals&ps dist)])
+     (make-dist vals
+                (vector-map (lambda (v p) (log (- (exp p) (exp (get-dist-prob sub-dist v)))))
+                            vals
+                            ps))))
+
+ (define (sample-discrete/log list-of-pairs)
+   (let ([list-of-lists/exp (map (lambda (x) (list (car x) (exp (cdr x)))) list-of-pairs)])
+     (apply multinomial (apply zip list-of-lists/exp))))
 
  )
 
