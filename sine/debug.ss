@@ -14,7 +14,8 @@
          slot->string
          &->string:n
          marginal->string
-         show-marginal)
+         show-marginal
+         maybe-syntax->string)
 
  (import (rnrs)
          (scheme-tools math distributions)
@@ -29,11 +30,16 @@
  ;; --------------------------------------------------------------------
  ;; Debug tools
 
+ (define (maybe-syntax->string obj)
+   (if (and (&expand-boolean (&pair? obj)) (&expand-boolean (&vector? (&car obj))) (syntax? (&car obj)))
+       (->string:n (syntax->original-expr (&car obj)) 50)
+       (&->string:n obj 30)))
+
  (define (dist->string dist)
    (let-values ([(vals ps) (dist-vals&ps dist)])
      (apply string-append
             (vector->list
-             (vector-map (lambda (v p) (string-append (&->string:n v 30) ": " (number->string (exp p))))
+             (vector-map (lambda (v p) (string-append (&->string:n v 30) ": " (number->string (exp p)) ", "))
                          vals
                          ps)))))
 
@@ -49,7 +55,7 @@
    (subcall-args->string (subcall-args subcall)))
 
  (define/kw (subcall-args->string args [num-chars :default 80] [show-env :default #f])
-   (if (&pair? args)
+   (if (&expand-boolean (&pair? args))
        (string-append (->string:n (syntax->original-expr (&car args)) num-chars)
                       " "
                       (if show-env
