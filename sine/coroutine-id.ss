@@ -8,7 +8,10 @@
          subcall-id?
          terminal-id
          terminal-id?
-         terminal-id->value)
+         terminal-id->value
+         xrp-id
+         xrp-id->xrp-vals
+         xrp-id->xrp-probs)
 
  (import (rnrs)
          (scheme-tools object-id)
@@ -33,5 +36,16 @@
 
  (define (subcall-id? obj)
    (prefixed-symbol? obj 'rec))
+
+ (define (xrp-id xrp)
+   (&list (compress-symbol 'xrp)
+          (compress-vector (xrp-vals xrp))
+          (compress-recursive (xrp-probs xrp))))
+
+ (define (xrp-id->xrp-vals xrp-id)
+   (&expand-vector (&cadr xrp-id)))
+
+ (define (xrp-id->xrp-probs xrp-id)
+   (&expand-recursive (&caddr xrp-id)))
 
  )
