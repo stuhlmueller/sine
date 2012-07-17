@@ -9,14 +9,16 @@
          vector-sum
          apply-subcall
          normalize-vector
-         dist-diff
-         sample-discrete/log)
+         diff-dist-fdist
+         sample-discrete/log
+         safe-log1minus)
 
  (import (rnrs)
          (scheme-tools srfi-compat :1)
          (scheme-tools srfi-compat :43)
          (scheme-tools value-number)
          (scheme-tools math distributions)
+         (scheme-tools math fragmented-distributions)
          (scheme-tools math)
          (scheme-tools)
          (sine coroutine-interpreter))
@@ -38,16 +40,24 @@
      (vector-map (lambda (x) (/ x s))
                  vec)))
 
- (define (dist-diff dist sub-dist)
+ (define (diff-dist-fdist dist sub-fdist)
    (let-values ([(vals ps) (dist-vals&ps dist)])
      (make-dist vals
-                (vector-map (lambda (v p) (log (- (exp p) (exp (get-dist-prob sub-dist v)))))
+                (vector-map (lambda (v p) (log (- (exp p) (exp (get-fdist-prob sub-fdist v)))))
                             vals
                             ps))))
 
  (define (sample-discrete/log list-of-pairs)
    (let ([list-of-lists/exp (map (lambda (x) (list (car x) (exp (cdr x)))) list-of-pairs)])
      (apply multinomial (apply zip list-of-lists/exp))))
+
+ (define (safe-log1minus v)
+   (if (and (> v 0.0)
+            (< v 0.000000000000001))
+       (begin
+         (pen "safe-log1minus: rounded " v " to 0.0")
+         (safe-log1minus 0.0))
+       (log (- 1.0 (exp v)))))
 
  )
 
