@@ -43,7 +43,8 @@
    (shift f (make-xrp f vs logps)))
 
  (define (coroutine-subcall expr env)
-   (if (syntax:application? expr) ;; (syntax:cache? expr)
+   (if (or (syntax:application? expr)
+           (syntax:if? expr)) ;; (syntax:cache? expr)
        (let ([g (lambda (ex en) (interpreter-eval ex en coroutine-subcall coroutine-source))])
          (shift f (make-subcall f g (&cons expr env))))
        (interpreter-eval expr env coroutine-subcall coroutine-source)))
