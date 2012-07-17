@@ -100,10 +100,10 @@
         (eq? (&expand-symbol &proc) 'apply)))
 
  (define (apply-dispatch-fn procedure)
-   (cond [(deterministic-primitive-procedure? procedure) apply-deterministic-primitive-procedure]
+   (cond [(apply? procedure) apply-apply]
+         [(deterministic-primitive-procedure? procedure) apply-deterministic-primitive-procedure]
          [(stochastic-primitive-procedure? procedure) apply-stochastic-primitive-procedure]
          [(compound-procedure? procedure) apply-compound-procedure]
-         [(apply? procedure) apply-apply]
          [else (begin
                  (pe "got: " procedure "\n"
                      "expanded: " (&expand-recursive procedure) "\n")
