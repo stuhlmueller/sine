@@ -21,6 +21,28 @@
         (sine utils))
 
 
+;; --------------------------------------------------------------------
+;; Settings
+
+(define verbose #f)
+
+
+
+;; --------------------------------------------------------------------
+;; Fragment IDs
+
+(define make-fragment-id (get-counter))
+
+(define (fragment-id-placeholder)
+  (&cons (compress-symbol 'fid-placeholder)
+         (compress-number (make-fragment-id))))
+
+(define (fragment-id-placeholder? &id)
+  (and (&pair?->b &id)
+       (&symbol?->b (&car &id))
+       (eq? (&expand-symbol (&car &id)) 'fid-placeholder)))
+
+
 
 ;; --------------------------------------------------------------------
 ;; DP tables
@@ -44,7 +66,7 @@
 
 (define (increment-global-marginal! &args v p)
   (let ([marginal (get-global-marginal &args)])
-    (let ([new-p (logsumexp (get-dist-prob marginal v) p)])
+    (let ([new-p (safe-logsumexp (get-dist-prob marginal v) p)])
       (assert* (<= new-p (+ LOG-PROB-1 .000001))
                (lambda () (pen (exp new-p))))
       (set-dist-prob! marginal v new-p)
@@ -59,9 +81,14 @@
   (make-eq-hashtable))
 
 (define (set-local-marginal! &args &slot fdist)
-  (hashtable-set! global-marginals (&cons &args &slot) fdist))
+  (hashtable-set! local-marginals (&cons &args &slot) fdist))
 
 (define (get-local-marginal &args &slot)
+  (hashtable-ref/default local-marginals
+                         (&cons &args &slot)
+                         make-empty-fdist))
+
+(define (get/make-local-marginal &args &slot)
   (hashtable-ref/default local-marginals
                          (&cons &args &slot)
                          (lambda ()
@@ -80,35 +107,30 @@
                  (&cons &args &slot)
                  LOG-PROB-0))
 
-(define (fully-explored? &args &slot)
-  (= (get-explored-mass &args &slot) LOG-PROB-1))
-
 (define (set-explored-mass! &args &slot mass)
   (hashtable-set! explored-mass-table
                   (&cons &args &slot)
                   mass))
+
+(define (inc-explored-mass! &args &slot inc-mass)
+  (when verbose
+        (pen "inc-explored-mass! " (args->string &args) ", "
+             (slot->string &slot) " inc-mass: " inc-mass))
+  (let* ([old-mass (get-explored-mass &args &slot)]
+         [new-mass (safe-logsumexp old-mass inc-mass)])
+    (assert* (<= new-mass LOG-PROB-1)
+             (lambda () (pen "inc-explored-mass error: logprob > 0\n"
+                        "old-mass: " old-mass "\n"
+                        "new mass: " new-mass)))
+    (set-explored-mass! &args
+                        &slot
+                        new-mass)))
 
 (define (get-unexplored-mass parent-args &slot &slot-elts)
   (map (lambda (&slot-elt)
          (log1minus (get-explored-mass parent-args
                                        (&reverse (&cons &slot-elt (&reverse &slot))))))
        &slot-elts))
-
-(define (update-explored-mass! &args &slot)
-  (pen "update-explored-mass! " (args->string &args) " " (slot->string &slot))
-  (when (not (fully-explored? &args &slot))
-        (let*-values ([(marginal) (get-local-marginal &args &slot)]
-                      [(vals ps) (dist-vals&ps marginal)])
-          (when (not (= (vector-length vals) 0))
-                (let ([weighted-child-mass
-                       (apply logsumexp
-                              (vector->list
-                               (vector-map (lambda (&v p) (+ p (get-explored-mass &args (&reverse (&cons &v (&reverse &slot))))))
-                                           vals ps)))])
-                  (set-explored-mass! &args &slot weighted-child-mass)
-                  (assert (not (= weighted-child-mass LOG-PROB-0)))))))
-  (when (not (&expand-boolean (&null? &slot)))
-        (update-explored-mass! &args (&reverse (&cdr (&reverse &slot))))))
 
 (define (reweight-dist dist log-weights)
   (make-dist (dist-vals dist)
@@ -138,15 +160,13 @@
   (if (or (eq? &args 'top)
           path-is-new)
       fdist
-      (let* ([fragment-&ids (map (compose compress-symbol fragment-id)                                                                ;; format of fragment ids unclear
-                                 (fdist-fragments fdist))]
+      (let* ([fragment-&ids (map fragment-id (fdist-fragments fdist))]
              [unexplored-mass (get-unexplored-mass &args &slot fragment-&ids)]
              [reweighted-fdist (reweight-fdist fdist unexplored-mass)])
         reweighted-fdist)))
 
 (define (new-path-position? &args &slot)
   (let ([v (= (get-explored-mass &args &slot) LOG-PROB-0)])
-    ;; (pen "new-path-position? " (args->string &args) " " (slot->string &slot) ": " v)
     v))
 
 
@@ -169,7 +189,6 @@
     (assert (subcall? init-state))
     (let-values ([(&value score _fid &path path-is-new*)
                   (sample init-state init-stack &init-slot init-score &init-path path-is-new)])
-      (pen "path-is-new: " path-is-new*)
       (values (&expand-recursive &value)
               score
               (&reverse &path)))))
@@ -183,18 +202,22 @@
 (define (sample-terminal terminal stack &slot score &path path-is-new)
   (values (terminal-value terminal)
           score
-          (terminal-id terminal)                                                                                               ;; this is equal to terminal-value
+          (terminal-id terminal)
           (&cons (&list (compress-symbol 'terminal)) &path)
           path-is-new))
 
 (define (sample-xrp xrp stack &slot score &path path-is-new)
-  (pen "sampling xrp at " (args->string (subcall-args (car stack))) ", " (slot->string (&reverse &slot)))
+  (when verbose
+        (pen "sampling xrp at " (args->string (subcall-args (car stack))) ", "
+             (slot->string (&reverse &slot))))
   (let* ([xrp-dist (make-dist (xrp-vals xrp) (xrp-probs xrp))]
-         [reweighted-dist (reweight-unexplored/dist (subcall-args (car stack)) (&reverse &slot) xrp-dist path-is-new)]         ;; here, we reweight a plain dist
+         [reweighted-dist (reweight-unexplored/dist (subcall-args (car stack))
+                                                    (&reverse &slot) xrp-dist path-is-new)]
          [value (sample-dist reweighted-dist)]
          [inc-score (get-dist-prob xrp-dist value)]
          [&slot* (&cons value &slot)]
-         [path-is-new* (or path-is-new (new-path-position? (subcall-args (car stack)) (&reverse &slot*)))])
+         [path-is-new* (or path-is-new
+                           (new-path-position? (subcall-args (car stack)) (&reverse &slot*)))])
     (sample ((xrp-cont xrp) value)
             stack
             &slot*
@@ -210,23 +233,37 @@
   (let* ([global-marginal (get-global-marginal (subcall-args subcall))]
          [local-marginal (get-local-marginal (subcall-args (car stack)) (&reverse &slot))]
          [diff-marginal (diff-dist-fdist global-marginal local-marginal)]
-         [reweighted-local-marginal (reweight-unexplored/fdist (subcall-args (car stack))                                       ;; here, we reweight a fragment dist
+         [reweighted-local-marginal (reweight-unexplored/fdist (subcall-args (car stack))
                                                                (&reverse &slot)
                                                                local-marginal
                                                                path-is-new)])
+    (when verbose
+          (pen "\nslot:    " (slot->string &slot) "\n"
+               "subcall: " (args->string (subcall-args subcall)) ":\n"
+               "local: " (fdist->string local-marginal) " -- " (exp (fdist-mass local-marginal)) "\n"
+               "reweighted: " (fdist->string reweighted-local-marginal)
+               " -- " (exp (fdist-mass reweighted-local-marginal)) "\n"
+               "diff: " (dist->string diff-marginal) " -- " (exp (dist-mass diff-marginal)) "\n"
+               "global: " (dist->string global-marginal) " -- " (exp (dist-mass global-marginal))))
     (let ([dispatch (sample-discrete/log
                      (list (cons sample-subcall-old (fdist-mass reweighted-local-marginal))
                            (cons sample-subcall-new (dist-mass diff-marginal))
                            (cons sample-subcall-internal (safe-log1minus (dist-mass global-marginal)))))])
-      (let-values ([(value inc-score &fragment-id &subpath path-is-new*)                                                        ;; &fragment-id must be a compressed object whenever it's returned
+      (let-values ([(value inc-score &fragment-id &subpath path-is-new*)
                     (dispatch subcall stack reweighted-local-marginal local-marginal diff-marginal)])
         (let* ([&path* (&cons (&list (compress-symbol 'subcall)
                                      (subcall-args subcall)
                                      value
                                      (compress-number inc-score)
-                                     (&reverse &subpath))
+                                     (&reverse &subpath)
+                                     (if (fragment-id-placeholder? &fragment-id)
+                                         (compress-symbol 'unknown-fragment-id)
+                                         &fragment-id))
                               &path)]
                [&slot* (&cons &fragment-id &slot)])
+          (when verbose
+                (pen (args->string (subcall-args subcall)) " -> "
+                     (&->string:n value 30) ", " (exp inc-score)))
           (sample ((subcall-cont subcall) value)
                   stack
                   &slot*
@@ -236,33 +273,33 @@
                       path-is-new*
                       (new-path-position? (subcall-args (car stack)) (&reverse &slot*)))))))))
 
-(define (fragment-id-placeholder)
-  (&cons (compress-symbol 'fragment-id-placeholder)
-         (compress-symbol (gensym))))
-
-(define (unknown-fragment-id? &id)
-  (and (&expand-boolean (&pair? &id))
-       (&expand-boolean (&symbol? (&car &id)))
-       (eq? (&expand-symbol (&car &id)) 'fragment-id-placeholder)))
-
 (define (sample-subcall-old subcall stack reweighted-local-marginal local-marginal diff-marginal)
-  (let ([fragment (sample-fdist-fragment reweighted-local-marginal)])
+  (when verbose (pen "old"))
+  (let* ([fragment-logprobs (map fragment-prob (fdist-fragments local-marginal))]
+         [reweighted-fragment-probs (map (compose exp fragment-prob)
+                                         (fdist-fragments reweighted-local-marginal))]
+         [index (sample-discrete reweighted-fragment-probs)]
+         [fragment (list-ref (fdist-fragments reweighted-local-marginal) index)]
+         [logprob (list-ref fragment-logprobs index)])
     (values (fragment-value fragment)
-            (fragment-prob fragment)
+            logprob
             (fragment-id fragment)
             &null
             false)))
 
 (define (sample-subcall-new subcall stack reweighted-local-marginal local-marginal diff-marginal)
-  (pen "NEW")
+  (when verbose (pen "diff"))
   (let* ([value (sample-dist diff-marginal)]
          [inc-score (get-dist-prob diff-marginal value)])
     (values value inc-score (fragment-id-placeholder) &null true)))
 
 (define (sample-subcall-internal subcall stack reweighted-local-marginal local-marginal diff-marginal)
-  (pen "INTERNAL")
+  (when verbose (pen "internal"))
   (let ([next-state (reset (make-terminal (apply-subcall subcall)))])
-    (sample next-state (cons subcall stack) &null LOG-PROB-1 &null #f)))
+    (let-values ([(&value score _fid &path path-is-new*)
+                  (sample next-state (cons subcall stack) &null LOG-PROB-1 &null #f)])
+      (values &value score (fragment-id-placeholder) &path path-is-new*))))
+
 
 
 ;; --------------------------------------------------------------------
@@ -282,83 +319,96 @@
     table*))
 
 
-;; could delete duplicates in slot-sequences
 (define (parse-path &path &top-value top-score)
 
   (define subcall-paths (make-eq-hashtable))
-  (define global-to-local (make-eq-hashtable))
   (define slot-sequences '())
   (define terminals '())
   (define xrp-ids '())
+  (define fragment-ids (make-eq-hashtable)) ;; associates a path element with a fragment id
+  (define fragment-info '()) ;; each entry is a tuple (args, slot, p, v, fragment-id)
 
-  (define (parse-terminal! &path p-&args &slot)
+  (define (parse-terminal! &path p-&args &slot &slot-ps)
     (set! terminals (cons (pair p-&args (&reverse &slot)) terminals))
-    (assert* (&expand-boolean (&null? (&cdr &path))) (lambda () (pen (&expand-recursive &path))))
-    (parse! (&cdr &path) p-&args &slot)) ;;;; <----- ????
+    (assert* (&null?->b (&cdr &path)) (lambda () (pen (&expand-recursive &path))))
+    (parse! (&cdr &path) p-&args &slot &slot-ps))
 
-  (define (parse-subcall! &path p-&args &slot)
-    (let-values ([(state-type args value score subpath) (apply values (&expand-list (&car &path)))])
-      (hashtable-cons! global-to-local args (cons p-&args (&reverse &slot)))
-      (when (not (&expand-boolean (&null? subpath)))
+  (define (parse-subcall! &path p-&args &slot &slot-ps)
+    (let-values ([(state-type args value score subpath &fragment-id)
+                  (apply values (&expand-list (&car &path)))])
+      (when (not (&null?->b subpath))
             (hashtable-cons! subcall-paths args (list subpath value score))
-            (parse! subpath args &null))
-      (parse! (&cdr &path) p-&args (&cons value &slot))))
+            (parse! subpath args &null &null))
+      (let ([&fid (if (eq? (&expand-step &fragment-id) 'unknown-fragment-id)
+                      (let ([id (hashtable-ref/default
+                                 fragment-ids
+                                 (&car &path)
+                                 (lambda ()
+                                   (let ([id (compress-number (make-fragment-id))])
+                                     (hashtable-set! fragment-ids (&car &path) id)
+                                     id)))])
+                        (set! fragment-info
+                              (cons (list p-&args &slot score value id)
+                                    fragment-info))
+                        id)
+                      &fragment-id)])
+        (parse! (&cdr &path) p-&args (&cons &fid &slot) (&cons score &slot-ps)))))
 
-  (define (parse-xrp! &path p-&args &slot)
+  (define (parse-xrp! &path p-&args &slot &slot-ps)
     (let-values ([(state-type value score id) (apply values (&expand-list (&car &path)))])
       (set! xrp-ids (cons id xrp-ids))
-      (hashtable-cons! global-to-local id (cons p-&args (&reverse &slot)))
-      ;; (hashtable-cons! subcall-paths id (list &null value score))
-      (parse! (&cdr &path) p-&args (&cons value &slot))))
+      (parse! (&cdr &path) p-&args (&cons value &slot) (&cons score &slot-ps))))
 
-  (define (parse! &path p-&args &slot)
-    (if (&expand-boolean (&null? &path))
-        (set! slot-sequences
-              (cons (cons p-&args (&reverse &slot))
-                    slot-sequences))
+  (define (parse! &path p-&args &slot &slot-ps)
+    (if (&null?->b &path)
+        (when (not (eq? p-&args 'top))
+              (set! slot-sequences
+                    (cons (list p-&args (&reverse &slot) (&reverse &slot-ps))
+                          slot-sequences)))
         (let* ([step (&car &path)]
                [state-type (&expand-symbol (&car step))])
-          (cond [(eq? state-type 'terminal) (parse-terminal! &path p-&args &slot)]
-                [(eq? state-type 'subcall) (parse-subcall! &path p-&args &slot)]
-                [(eq? state-type 'xrp) (parse-xrp! &path p-&args &slot)]))))
+          (cond [(eq? state-type 'terminal) (parse-terminal! &path p-&args &slot &slot-ps)]
+                [(eq? state-type 'subcall) (parse-subcall! &path p-&args &slot &slot-ps)]
+                [(eq? state-type 'xrp) (parse-xrp! &path p-&args &slot &slot-ps)]))))
 
-  (parse! &path 'top &null)
-  ;; (hashtable-cons! subcall-paths 'top (list &path &top-value (compress-number top-score)))
+  (parse! &path 'top &null &null)
   (set! subcall-paths (make-set-hashtable! subcall-paths))
-  (set! global-to-local (make-set-hashtable! global-to-local))
-  (values subcall-paths terminals xrp-ids slot-sequences global-to-local))
+  (set! slot-sequences (delete-duplicates slot-sequences equal?))
+  (values subcall-paths terminals xrp-ids slot-sequences fragment-info))
 
 
 (define (update-global-marginals! subcall-paths)
-  (hashtable-for-each (lambda (args lst)
-                        (map (lambda (elt)
-                               (let-values ([(&subpath &value &score) (apply values elt)])
-                                 (pen "increment-global-marginal! " (args->string args) " "
-                                      (&->string:n &value 30) " " (number->string (exp (&expand-number &score))))
-                                 (increment-global-marginal! args &value (&expand-number &score))))
-                             lst))
-                      subcall-paths))
+  (hashtable-for-each
+   (lambda (args lst)
+     (map (lambda (elt)
+            (let-values ([(&subpath &value &score) (apply values elt)])
+              (when verbose
+                    (pen "increment-global-marginal! " (args->string args) " "
+                         (&->string:n &value 30) " " (number->string (exp (&expand-number &score)))))
+              (increment-global-marginal! args &value (&expand-number &score))))
+          lst))
+   subcall-paths))
 
-(define (update-local-marginals! global-to-local) ;; take into account chunks?
-  (hashtable-for-each (lambda (args lst)
-                        (alist-map (lambda (parent-args slot)
-                                     (set-local-marginal! parent-args
-                                                          slot
-                                                          (copy-dist (get-global-marginal args))))
-                                   lst))
-                      global-to-local))
-
-(define (update-terminals-explored-mass! terminals)
-  (alist-map (lambda (args slot)
-               (set-explored-mass! args slot LOG-PROB-1))
-             terminals))
+(define (update-local-marginals! fragment-info)
+  (for-each (lambda (entry)
+              (let-values ([(&args &slot score value &fragment-id) (apply values entry)])
+                (let ([local-marginal (get/make-local-marginal &args &slot)])
+                  (fdist-add-fragment! local-marginal
+                                       (make-fragment value (&expand-number score) &fragment-id)))))
+            fragment-info))
 
 (define (update-seqs-explored-mass! slot-sequences)
-  (alist-map (lambda (args slot)
-               ;; (pen "\nupdate-seqs-explored-mass! " args " " (&expand-recursive slot))
-               (set-explored-mass! args slot LOG-PROB-1)
-               (update-explored-mass! args slot))
-             slot-sequences))
+  (map (lambda (entry)
+         (let-values ([(args &slot &scores) (apply values entry)])
+           (let loop ([&slot (&reverse &slot)]
+                      [&scores (&reverse &scores)]
+                      [acc LOG-PROB-1])
+             (inc-explored-mass! args (&reverse &slot) acc)
+             (when (not (&null?->b &slot))
+                   (loop (&cdr &slot)
+                         (&cdr &scores)
+                         (+ acc (&expand-number (&car &scores))))))))
+       slot-sequences))
 
 (define (update-xrp-global-marginals! xrp-ids)
   (for-each (lambda (id)
@@ -373,49 +423,57 @@
       (string-append (->string args) " " (maybe-syntax->string args))))
 
 (define (update! path top-value top-score)
-  (let-values ([(subcall-paths terminals xrp-ids slot-sequences global-to-local)
+  (let-values ([(subcall-paths terminals xrp-ids slot-sequences fragment-info)
                 (parse-path path top-value top-score)])
-    (pen "\nXRP ids:\n" xrp-ids)
-    (pen "\nTerminals:")
-    (alist-map (lambda (args slot)
-                 (pen (args->string args) ", " (slot->string slot) ", p=1"))
-               terminals)
-    (pen "\nSlot sequences:")
-    (alist-map (lambda (k v) (pen (args->string k) ", " (&expand-recursive v)))
-               slot-sequences)
-    (pen "\nSubcall paths:")
-    (hashtable-for-each (lambda (args lst)
-                          (pen (args->string args) ": ")
-                          (for-each (lambda (sp) (pen "  "(first sp) ", "
-                                                 (&expand-recursive (second sp)) ", "
-                                                 (exp (&expand-recursive (third sp))))) lst))
-                        subcall-paths)
-    (pen "\nGlobal-to-local:")
-    (hashtable-for-each (lambda (args lst)
-                          (alist-map (lambda (parent-args slot)
-                                       (pen (args->string parent-args) ", " (slot->string slot) " == " (args->string args)))
-                                     lst))
-                        global-to-local)
+    (when verbose
+          (pen "\nXRP ids:\n" xrp-ids)
+          (pen "\nTerminals:")
+          (alist-map (lambda (args slot)
+                       (pen (args->string args) ", " (slot->string slot) ", p=1"))
+                     terminals)
+          (pen "\nSlot sequences:")
+          (alist-map (lambda (k v) (pen (args->string k) ", " (map &expand-recursive v)))
+                     slot-sequences)
+          (pen "\nSubcall paths:")
+          (hashtable-for-each (lambda (args lst)
+                                (pen (args->string args) ": ")
+                                (for-each (lambda (sp) (pen "  "(first sp) ", "
+                                                       (&expand-recursive (second sp)) ", "
+                                                       (exp (&expand-recursive (third sp))))) lst))
+                              subcall-paths)
+          (pen "\nFragment info:")
+          (for-each (lambda (entry)
+                      (let-values ([(&args &slot score value &fragment-id) (apply values entry)])
+                        (pen (&expand-number score) " " (&->string:n value 30) " "
+                             (&->string:n &fragment-id 30))))
+                    fragment-info)
+          (pen))
+
     (update-xrp-global-marginals! xrp-ids)
     (update-global-marginals! subcall-paths)
-    (update-local-marginals! global-to-local)
-    (update-terminals-explored-mass! terminals)
+    (update-local-marginals! fragment-info)
     (update-seqs-explored-mass! slot-sequences)
-    (pen "\nGlobal marginals:")
-    (hashtable-for-each (lambda (args dist)
-                          (pen (args->string args) ": " (dist->string dist)))
-                        global-marginals)
-    (pen "\nLocal marginals:")
-    (hashtable-for-each (lambda (id dist)
-                          (let ([arg+slot (&expand-pair id)])
-                            (pen (args->string (car arg+slot)) ", slot " (&expand-recursive (cdr arg+slot))
-                                 ": " (dist->string dist))))
-                        local-marginals)
-    (pen "\nExplored mass:")
-    (hashtable-for-each (lambda (k v)
-                          (let ([args+slot (&expand-pair k)])
-                            (pen (args->string (car args+slot)) ", " (&expand-recursive (cdr args+slot)) ": " (exp v))))
-                        explored-mass-table)))
+
+    (when verbose
+          (pen "\nGlobal marginals:")
+          (hashtable-for-each (lambda (args dist)
+                                (pen (args->string args) ": " (dist->string dist)))
+                              global-marginals)
+          (pen "\nLocal marginals:")
+          (hashtable-for-each (lambda (id dist)
+                                (let ([arg+slot (&expand-pair id)])
+                                  (pen (args->string (car arg+slot)) ", slot "
+                                       (&expand-recursive (cdr arg+slot))
+                                       ": " (fdist->string dist))))
+                              local-marginals)
+          (pen "\nExplored mass:")
+          (hashtable-for-each (lambda (k v)
+                                (let ([args+slot (&expand-pair k)])
+                                  (pen (args->string (car args+slot)) ", "
+                                       (&expand-recursive (cdr args+slot)) ": " (exp v))))
+                              explored-mass-table))
+    ))
+
 
 
 ;; --------------------------------------------------------------------
@@ -435,14 +493,39 @@
 (define example:no-multiple-paths
   '(list (flip .1) (list (list (flip .2) (flip .1)) (list (flip .2) (flip .1)))))
 
+(define example:function
+  '(begin
+     (define (foo x)
+       (if x (flip .4) (flip .5)))
+     (foo (flip .3))))
+
+(define example:recursion
+  '(begin
+     (define foo
+       (lambda ()
+         (if (flip)
+             (not (foo))
+             (flip .3))))
+     (cache (foo))))
+
 (define (test)
-  (let ([expr example:multiple-paths-basic])
-    (pen "--------------------------------------------------------------------")
+  (let ([expr example:multiple-paths-or])
+    (when verbose
+          (pen "--------------------------------------------------------------------"
+               "\nSAMPLING"))
     (let-values ([(value score path) (sample-top (coroutine-interpreter expr))])
       (pen "value: " value)
-      (pen "score: " (exp score))
-      ;; (update! path value score)
+      (pen "score: " (exp score) "\n")
+      (when verbose
+            (pen "\n--------------------------------------------------------------------"
+                 "\nUPDATING"))
+      (update! path value score)
       value)))
 
 (seed-rng 10)
-(repeat 30 test)
+(repeat 10 test)
+
+(pen "Global marginals:")
+(hashtable-for-each (lambda (args dist)
+                      (pen (args->string args) ": " (dist->string dist)))
+                    global-marginals)

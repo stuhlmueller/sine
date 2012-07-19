@@ -53,7 +53,7 @@
                             )))
 
  (define (syntax? s)
-   (and (&vector? s)
+   (and (&vector?->b s)
         (eq? 'syntax (&expand-symbol (&vector-ref s 0)))))
 
  (define (syntax->type s)

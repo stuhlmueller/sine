@@ -5,6 +5,7 @@
  (sine debug)
 
  (export dist->string
+         fdist->string
          state->string
          stack->string
          subcall->string
@@ -18,6 +19,7 @@
          maybe-syntax->string)
 
  (import (rnrs)
+         (scheme-tools math fragmented-distributions)
          (scheme-tools math distributions)
          (scheme-tools hashtable)
          (scheme-tools srfi-compat :1)
@@ -31,7 +33,7 @@
  ;; Debug tools
 
  (define (maybe-syntax->string obj)
-   (if (and (&expand-boolean (&pair? obj)) (&expand-boolean (&vector? (&car obj))) (syntax? (&car obj)))
+   (if (and (&pair?->b obj) (&vector?->b (&car obj)) (syntax? (&car obj)))
        (->string:n (syntax->original-expr (&car obj)) 50)
        (&->string:n obj 30)))
 
@@ -42,6 +44,16 @@
              (vector-map (lambda (v p) (string-append (&->string:n v 30) ": " (number->string (exp p)) ", "))
                          vals
                          ps)))))
+
+ (define (fragment->string fragment)
+   (string-append "(" (&->string:n (fragment-id fragment) 30) ", "
+                  (->string (exp (fragment-prob fragment)))
+                  ", " (&->string:n (fragment-value fragment) 30) ") "))
+
+ (define (fdist->string fdist)
+   (string-append "{ " (dist->string (fdist-table fdist)) "} -- <"
+                  (apply string-append (map fragment->string (fdist-fragments fdist)))
+                  ">"))
 
  (define (state->string state)
    (cond [(subcall? state) (subcall->string state)]
@@ -55,7 +67,7 @@
    (subcall-args->string (subcall-args subcall)))
 
  (define/kw (subcall-args->string args [num-chars :default 80] [show-env :default #f])
-   (if (&expand-boolean (&pair? args))
+   (if (&pair?->b args)
        (string-append (->string:n (syntax->original-expr (&car args)) num-chars)
                       " "
                       (if show-env

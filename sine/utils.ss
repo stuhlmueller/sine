@@ -11,7 +11,8 @@
          normalize-vector
          diff-dist-fdist
          sample-discrete/log
-         safe-log1minus)
+         safe-log1minus
+         safe-logsumexp)
 
  (import (rnrs)
          (scheme-tools srfi-compat :1)
@@ -58,6 +59,15 @@
          (pen "safe-log1minus: rounded " v " to 0.0")
          (safe-log1minus 0.0))
        (log (- 1.0 (exp v)))))
+
+ (define (safe-logsumexp . vals)
+   (let ([v (apply logsumexp vals)])
+     (if (and (> v 0.0)
+              (< v 0.000000000000001))
+         (begin
+           (pen "safe-logsumexp: rounded " v " to 0.0")
+           0.0)
+         v)))
 
  )
 

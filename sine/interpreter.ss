@@ -96,7 +96,7 @@
  ;; Apply
 
  (define (apply? &proc)
-   (and (&symbol? &proc)
+   (and (&symbol?->b &proc)
         (eq? (&expand-symbol &proc) 'apply)))
 
  (define (apply-dispatch-fn procedure)
@@ -151,7 +151,7 @@
           &env))
 
  (define (compound-procedure? &p)
-   (&tagged-list? &p 'procedure))
+   (&tagged-list?->b &p 'procedure))
 
  (define (procedure-parameters p)
    (&expand-recursive (&cadr p)))
@@ -174,7 +174,7 @@
 
  (define (primitive-procedure-objects procs type-symbol)
    (map (lambda (proc) (&list (compress-symbol type-symbol)
-                              (compress-procedure (cadr proc) (car proc))))
+                         (compress-procedure (cadr proc) (car proc))))
         procs))
 
  (define (all-primitive-names)
@@ -192,7 +192,7 @@
  ;; Deterministic primitive procedures (compressed)
 
  (define (deterministic-primitive-procedure? &proc)
-   (&tagged-list? &proc 'primitive))
+   (&tagged-list?->b &proc 'primitive))
 
  (define (apply-deterministic-primitive-procedure &proc args subcall source)
    (scheme-apply (primitive-implementation &proc)
@@ -203,7 +203,7 @@
  ;; Stochastic primitive procedures (compressed)
 
  (define (stochastic-primitive-procedure? &proc)
-   (&tagged-list? &proc 'rand))
+   (&tagged-list?->b &proc 'rand))
 
  (define (apply-stochastic-primitive-procedure &proc args subcall source)
    (scheme-apply (primitive-implementation &proc)
