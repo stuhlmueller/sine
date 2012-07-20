@@ -374,6 +374,7 @@
   (parse! &path 'top &null &null)
   (set! subcall-paths (make-set-hashtable! subcall-paths))
   (set! slot-sequences (delete-duplicates slot-sequences equal?))
+  (set! fragment-info (delete-duplicates fragment-info equal?))
   (values subcall-paths terminals xrp-ids slot-sequences fragment-info))
 
 
