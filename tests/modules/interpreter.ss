@@ -4,7 +4,7 @@
         (scheme-tools)
         (scheme-tools srfi-compat :1)
         (sine interpreter)
-        (sine value-number)
+        (scheme-tools value-number)
         (scheme-tools profile))
 
 (define test-prog-norecursion
@@ -77,4 +77,11 @@
                  )))
             (map (lambda (x) (* x 8000)) '(1 2 3 4 5))))
 
-(profile-list-test)
+(define (speed-comparison n)
+  (let* ([test-expr (make-list-test n)]
+         [N1 (get-runtime (lambda () (time (sicp-interpreter test-expr))))]
+         [N2 (let ([env (environment '(rnrs))])
+               (get-runtime (lambda () (time (eval `((lambda () ,test-expr)) env)))))])
+    (pen N1 ", " N2 ", " (/ N1 N2))))
+
+(for-each speed-comparison (list 300000))
