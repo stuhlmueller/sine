@@ -6,6 +6,7 @@
 
  (export coroutine-interpreter
          coroutine-interpreter/xrp
+         coroutine-subcall
          make-xrp
          xrp-cont
          xrp-vals

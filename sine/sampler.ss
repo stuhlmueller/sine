@@ -11,6 +11,7 @@
         (scheme-tools srfi-compat :43)
         (scheme-tools value-number)
         (scheme-tools)
+        (sine interpreter)
         (sine coroutine-id)
         (sine coroutine-interpreter)
         (sine debug)
@@ -120,8 +121,8 @@
          [new-mass (safe-logsumexp old-mass inc-mass)])
     (assert* (<= new-mass LOG-PROB-1)
              (lambda () (pen "inc-explored-mass error: logprob > 0\n"
-                        "old-mass: " old-mass "\n"
-                        "new mass: " new-mass)))
+                             "old-mass: " old-mass "\n"
+                             "new mass: " new-mass)))
     (set-explored-mass! &args
                         &slot
                         new-mass)))
@@ -243,8 +244,10 @@
                "local: " (fdist->string local-marginal) " -- " (exp (fdist-mass local-marginal)) "\n"
                "reweighted: " (fdist->string reweighted-local-marginal)
                " -- " (exp (fdist-mass reweighted-local-marginal)) "\n"
-               "diff: " (dist->string diff-marginal) " -- " (exp (dist-mass diff-marginal)) "\n"
-               "global: " (dist->string global-marginal) " -- " (exp (dist-mass global-marginal))))
+               "diff: " (dist->string diff-marginal) " -- " ;; (exp (dist-mass diff-marginal)) "\n"
+               "global: " (dist->string global-marginal) " -- " (exp (dist-mass global-marginal))
+               )
+          )
     (let ([dispatch (sample-discrete/log
                      (list (cons sample-subcall-old (fdist-mass reweighted-local-marginal))
                            (cons sample-subcall-new (dist-mass diff-marginal))
@@ -439,7 +442,7 @@
           (hashtable-for-each (lambda (args lst)
                                 (pen (args->string args) ": ")
                                 (for-each (lambda (sp) (pen "  "(first sp) ", "
-                                                       (&expand-recursive (second sp)) ", "
+                                                       (&->string:n (second sp) 80) ", "
                                                        (exp (&expand-recursive (third sp))))) lst))
                               subcall-paths)
           (pen "\nFragment info:")
@@ -495,38 +498,44 @@
   '(list (flip .1) (list (list (flip .2) (flip .1)) (list (flip .2) (flip .1)))))
 
 (define example:function
-  '(begin
-     (define (foo x)
-       (if x (flip .4) (flip .5)))
-     (foo (flip .3))))
+  (with-preamble
+   '(begin
+      (define (foo x)
+        (if x (flip .4) (flip .5)))
+      (cache (foo (flip .3))))))
 
 (define example:recursion
-  '(begin
-     (define foo
-       (lambda ()
-         (if (flip)
-             (not (foo))
-             (flip .3))))
-     (cache (foo))))
+  (with-preamble
+   '(begin
+      (define foo
+        (lambda ()
+          (if (flip)
+              (not (foo))
+              (flip .3))))
+      (cache (foo)))))
 
-(define (test)
-  (let ([expr example:multiple-paths-or])
+(define (test-n expr n)
+  (define test-env (setup-environment))
+  (define test-syntax (sexpr->syntax expr test-env))
+  (define (test-interpreter syntax env)
+    (reset (make-terminal (coroutine-subcall syntax env))))
+  (define (test-once)
     (when verbose
           (pen "--------------------------------------------------------------------"
                "\nSAMPLING"))
-    (let-values ([(value score path) (sample-top (coroutine-interpreter expr))])
+    (let-values ([(value score path) (sample-top (test-interpreter test-syntax test-env))])
       (pen "value: " value)
       (pen "score: " (exp score) "\n")
       (when verbose
             (pen "\n--------------------------------------------------------------------"
                  "\nUPDATING"))
       (update! path value score)
-      value)))
+      value))
+  (seed-rng 10)
+  (repeat n test-once)
+  (pen "Global marginals:")
+  (hashtable-for-each (lambda (args dist)
+                        (pen (args->string args) ": " (dist->string dist)))
+                      global-marginals))
 
-(seed-rng 10)
-(repeat 10 test)
-
-(pen "Global marginals:")
-(hashtable-for-each (lambda (args dist)
-                      (pen (args->string args) ": " (dist->string dist)))
-                    global-marginals)
+(test-n example:recursion 1000)
